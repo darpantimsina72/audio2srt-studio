@@ -1,0 +1,121 @@
+============================================================
+  AUDIO TO SRT  —  Adobe Premiere Pro
+  Transcribe audio, add subtitles, auto-cut silence
+  Powered by ElevenLabs Scribe AI  +  ffmpeg
+============================================================
+
+
+WHAT YOU NEED BEFORE STARTING
+------------------------------
+  1. Adobe Premiere Pro  (CC 2019 / v13 or newer)
+
+  2. Python 3.10 or newer
+     https://www.python.org/downloads/
+     (Windows: tick "Add Python to PATH" during install)
+
+  3. ffmpeg  —  ONLY needed for the Silence Cut feature
+     Mac:     brew install ffmpeg
+     Windows: https://ffmpeg.org/download.html  (add to PATH)
+     (Subtitles work fine without ffmpeg.)
+
+  4. ElevenLabs account  (free tier works)
+     Get your API key:
+     https://elevenlabs.io/app/speech-synthesis/api
+
+
+QUICK SETUP
+-----------
+  MAC
+    1. Put this folder anywhere (Documents, Desktop — doesn't matter)
+    2. Double-click  setup.command
+       (if Mac blocks it: right-click → Open → Open)
+    3. Paste your ElevenLabs API key when asked
+    4. FULLY QUIT Premiere (Cmd+Q) and reopen it
+
+  WINDOWS
+    1. Put this folder anywhere
+    2. Double-click  setup.bat
+    3. Paste your ElevenLabs API key when asked
+    4. FULLY QUIT Premiere and reopen it
+
+  The setup does everything: installs the Python pieces, turns on
+  Premiere's extension support, and installs the panel.
+
+
+HOW TO USE
+----------
+  1. Open Premiere Pro, open a project and a SEQUENCE
+  2. Make sure the sequence has an audio clip on it
+  3. Menu:  Window  →  Extensions  →  Audio to SRT
+  4. Pick the audio track in the panel
+  5. Adjust subtitle settings if needed (defaults are fine)
+  6. Click  "Generate Subtitles"
+       → it transcribes (internet required) and imports an SRT
+         caption into your Project panel
+       → on supported Premiere versions it is also dropped onto a
+         new caption track automatically; otherwise just drag the
+         imported caption from the Project panel onto your timeline
+  7. (optional)  Click  "Cut Silence → tightened clip"
+       → renders a copy of the clip with the silent gaps removed
+         and imports it (plus a matching SRT if the box is ticked)
+
+
+SUBTITLE SETTINGS EXPLAINED
+----------------------------
+  Max chars / line · Max lines · Max seconds
+    42 / 2 / 7   →  two-line English captions  (default)
+    10 / 1 / 5   →  short single-line Nepali/Hindi captions
+
+
+SILENCE CUT SETTINGS
+--------------------
+  Threshold (dB)   how quiet counts as "silence"  (-30 default;
+                   -40 = only very quiet parts, -20 = more aggressive)
+  Min gap (s)      ignore silences shorter than this  (0.5 default)
+  Keep pad (s)     leave a little breath around speech  (0.05 default)
+
+  The result is a NEW file named  <clip>_nosilence.<ext>  saved in an
+  "audio_to_srt_exports" folder next to your source clip, then imported
+  into Premiere. Your original clip is never modified.
+
+
+WHY A NEW CLIP INSTEAD OF EDITING THE TIMELINE?
+-----------------------------------------------
+  Premiere's scripting cannot reliably razor + ripple-delete the live
+  timeline. Rendering a clean, tightened clip is the dependable way to
+  remove silence — it always works and never corrupts your edit. Drop
+  the tightened clip onto a fresh track and you're done.
+
+
+TROUBLESHOOTING
+---------------
+  Panel not in the Extensions menu
+  → Make sure you FULLY quit and reopened Premiere after setup
+  → Re-run setup; it enables "PlayerDebugMode" (needed for unsigned panels)
+
+  Panel is blank / "Node.js is not enabled"
+  → Fully quit and reopen Premiere; if it persists, re-run setup
+
+  "Could not find the Audio-to-SRT folder"
+  → Re-run setup from inside THIS folder (it records the folder path)
+
+  "ELEVENLABS_API_KEY not set"
+  → Open the .env file in this folder and add:
+       ELEVENLABS_API_KEY=your_key_here
+
+  Silence Cut says ffmpeg missing
+  → Install ffmpeg (see top of this file)
+
+
+FILES IN THIS FOLDER
+--------------------
+  com.audiotosrt.cep/   The Premiere panel (installed by setup)
+  transcribe.py         ElevenLabs transcription → SRT
+  silence.py            Silence detection + tightened-clip render (ffmpeg)
+  .env                  Your API key  (never share this file)
+  requirements.txt      Python packages list
+  setup.command         Mac installer
+  setup.bat             Windows installer
+  INSTALL.txt           This file
+
+============================================================

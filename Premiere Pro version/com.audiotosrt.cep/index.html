@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Audio to SRT</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #2b2b2b; color: #e6e6e6;
+      font-family: -apple-system, "Segoe UI", Tahoma, sans-serif;
+      font-size: 12px;
+    }
+    .wrap { padding: 12px 14px 16px; }
+    h1 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+    .sub { color: #9a9a9a; font-size: 11px; margin: 0 0 12px; }
+    label { display: block; margin: 10px 0 4px; color: #c8c8c8; }
+    select, input {
+      width: 100%; box-sizing: border-box;
+      background: #1f1f1f; color: #e6e6e6;
+      border: 1px solid #444; border-radius: 4px;
+      padding: 6px 8px; font-size: 12px;
+    }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    .hint { color: #7d7d7d; font-size: 10px; margin-top: 3px; }
+    fieldset {
+      border: 1px solid #3a3a3a; border-radius: 6px;
+      margin: 14px 0 0; padding: 8px 12px 12px;
+    }
+    legend { color: #b9b9b9; padding: 0 6px; font-weight: 600; }
+    .check { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+    .check input { width: auto; }
+    button {
+      width: 100%; margin-top: 12px;
+      background: #3a7afe; color: #fff; border: 0; border-radius: 5px;
+      padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    button.secondary { background: #4a4a4a; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status {
+      margin-top: 14px; background: #1b1b1b; border: 1px solid #3a3a3a;
+      border-radius: 5px; padding: 8px 10px; min-height: 46px;
+      white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 11px; color: #b8c7e0; max-height: 150px; overflow: auto;
+    }
+    .err { color: #ff8a80; }
+    .ok  { color: #8ce99a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Audio to SRT</h1>
+    <p class="sub">ElevenLabs Scribe → subtitles · auto silence cut</p>
+
+    <label for="track">Audio track</label>
+    <select id="track"></select>
+    <button class="secondary" id="refresh" style="margin-top:6px;">↻ Refresh tracks</button>
+
+    <fieldset>
+      <legend>Subtitle settings</legend>
+      <div class="row">
+        <div>
+          <label for="chars">Max chars / line</label>
+          <input id="chars" type="number" value="42" min="1" />
+        </div>
+        <div>
+          <label for="lines">Max lines</label>
+          <input id="lines" type="number" value="2" min="1" />
+        </div>
+        <div>
+          <label for="secs">Max seconds</label>
+          <input id="secs" type="number" value="7" min="1" step="0.5" />
+        </div>
+      </div>
+      <p class="hint">Nepali/Hindi short style: 10 / 1 / 5</p>
+    </fieldset>
+
+    <button id="generate">Generate Subtitles</button>
+
+    <fieldset>
+      <legend>Silence cut (auto)</legend>
+      <div class="row">
+        <div>
+          <label for="thr">Threshold (dB)</label>
+          <input id="thr" type="number" value="-30" step="1" />
+        </div>
+        <div>
+          <label for="gap">Min gap (s)</label>
+          <input id="gap" type="number" value="0.5" min="0.1" step="0.1" />
+        </div>
+        <div>
+          <label for="pad">Keep pad (s)</label>
+          <input id="pad" type="number" value="0.05" min="0" step="0.05" />
+        </div>
+      </div>
+      <div class="check">
+        <input id="withsubs" type="checkbox" checked />
+        <label for="withsubs" style="margin:0;">Also make synced SRT</label>
+      </div>
+      <p class="hint">Renders a tightened copy of the clip (needs ffmpeg) and imports it.</p>
+    </fieldset>
+
+    <button class="secondary" id="cutsilence">Cut Silence → tightened clip</button>
+
+    <div id="status">Ready.</div>
+  </div>
+
+  <script src="./js/main.js"></script>
+</body>
+</html>

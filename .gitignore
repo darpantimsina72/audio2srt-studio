@@ -1,0 +1,36 @@
+# ── Secrets — NEVER commit ────────────────────────────────────────────────
+.env
+**/.env
+*.key
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── Build outputs ─────────────────────────────────────────────────────────
+dist/
+build/temp/
+*.dmg
+*-Setup.exe
+
+# Bundled ffmpeg/ffprobe (downloaded by the build scripts, not source)
+Audio2SRT App/bin/*
+!Audio2SRT App/bin/.gitkeep
+
+# ── Logs / runtime ────────────────────────────────────────────────────────
+logs/
+**/logs/
+*.log
+*.log.*
+
+# ── Redundant local distribution snapshot ─────────────────────────────────
+for others/
+*.zip
+
+# ── OS cruft ──────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+Thumbs.db

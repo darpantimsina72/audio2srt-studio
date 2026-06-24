@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Audio2SRT Studio</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #1e1f22; color: #e8e8e8;
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 13px; }
+    .wrap { padding: 16px 18px 22px; }
+    h1 { font-size: 16px; margin: 0 0 2px; }
+    .sub { color: #8a8d93; font-size: 11px; margin: 0 0 14px; }
+    .pill { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 6px; }
+    .pill.ok { background: #1d3a24; color: #8ce99a; }
+    .pill.no { background: #3a1d1d; color: #ff8a80; }
+    label { display: block; margin: 12px 0 4px; color: #c4c7cd; font-size: 12px; }
+    input, select { width: 100%; background: #2a2c30; color: #e8e8e8; border: 1px solid #3a3d44;
+      border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+    .row { display: flex; gap: 8px; } .row > div { flex: 1; }
+    .filerow { display: flex; gap: 8px; } .filerow input { flex: 1; }
+    fieldset { border: 1px solid #34373d; border-radius: 8px; margin: 16px 0 0; padding: 6px 14px 14px; }
+    legend { color: #aab0bb; padding: 0 6px; font-weight: 600; }
+    .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .check input { width: auto; }
+    .hint { color: #71757d; font-size: 10.5px; margin: 4px 0 0; }
+    button { background: #3a7afe; color: #fff; border: 0; border-radius: 7px; padding: 10px 12px;
+      font-size: 13px; font-weight: 600; cursor: pointer; }
+    button.sec { background: #393c43; } button.mini { padding: 8px 12px; font-weight: 500; }
+    button:disabled { opacity: .5; cursor: default; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; } .actions button { flex: 1; }
+    #status { margin-top: 16px; background: #16171a; border: 1px solid #34373d; border-radius: 7px;
+      padding: 10px 12px; min-height: 52px; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 11.5px; color: #aebbd0; max-height: 170px; overflow: auto; }
+    .err { color: #ff8a80; } .ok { color: #8ce99a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Audio2SRT Studio <span id="ffpill" class="pill">…</span></h1>
+    <p class="sub">ElevenLabs Scribe subtitles · ffmpeg silence cut · bundled, no setup</p>
+
+    <label for="key">ElevenLabs API key</label>
+    <div class="filerow">
+      <input id="key" type="password" placeholder="sk_…" />
+      <button class="sec mini" id="savekey">Save</button>
+    </div>
+
+    <label for="media">Media file</label>
+    <div class="filerow">
+      <input id="media" placeholder="pick an audio or video file…" readonly />
+      <button class="sec mini" id="pickmedia">Browse</button>
+    </div>
+
+    <label for="outdir">Output folder</label>
+    <div class="filerow">
+      <input id="outdir" placeholder="where to save SRT / clips…" readonly />
+      <button class="sec mini" id="pickout">Browse</button>
+    </div>
+
+    <fieldset>
+      <legend>Subtitles</legend>
+      <div class="row">
+        <div><label for="chars">Chars/line</label><input id="chars" type="number" value="42" min="1" /></div>
+        <div><label for="lines">Lines</label><input id="lines" type="number" value="2" min="1" /></div>
+        <div><label for="secs">Seconds</label><input id="secs" type="number" value="7" min="1" step="0.5" /></div>
+      </div>
+      <p class="hint">Short Nepali/Hindi style: 10 / 1 / 5</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Silence cut</legend>
+      <div class="row">
+        <div><label for="thr">Threshold dB</label><input id="thr" type="number" value="-30" step="1" /></div>
+        <div><label for="gap">Min gap s</label><input id="gap" type="number" value="0.5" min="0.1" step="0.1" /></div>
+        <div><label for="pad">Keep pad s</label><input id="pad" type="number" value="0.05" min="0" step="0.05" /></div>
+      </div>
+      <div class="check"><input id="withsubs" type="checkbox" checked /><label for="withsubs" style="margin:0;">Also make a synced SRT</label></div>
+    </fieldset>
+
+    <div class="actions">
+      <button id="gen">Generate SRT</button>
+      <button class="sec" id="cut">Cut Silence</button>
+    </div>
+
+    <fieldset>
+      <legend>Editor integration (optional)</legend>
+      <p class="hint" style="margin-bottom:8px;">Install the panel/script so subtitles drop straight onto your timeline.</p>
+      <div class="actions" style="margin-top:0;">
+        <button class="sec mini" id="insres">Install Resolve script</button>
+        <button class="sec mini" id="inspre">Install Premiere panel</button>
+      </div>
+    </fieldset>
+
+    <div id="status">Loading…</div>
+  </div>
+
+  <script>
+    var $ = function (id) { return document.getElementById(id); };
+    var statusEl = $("status");
+    function setStatus(m, c) { statusEl.textContent = m; statusEl.className = c || ""; }
+    function append(m) { statusEl.textContent += "\n" + m; statusEl.scrollTop = statusEl.scrollHeight; }
+    function busy(on) { ["gen", "cut", "insres", "inspre"].forEach(function (i) { $(i).disabled = on; }); }
+    function api() { return window.pywebview.api; }
+
+    function boot() {
+      api().status().then(function (s) {
+        var p = $("ffpill");
+        if (s.ffmpeg) { p.className = "pill ok"; p.textContent = "ffmpeg ✓"; }
+        else { p.className = "pill no"; p.textContent = "ffmpeg ✗"; }
+        setStatus(s.has_key ? "Ready." : "Add your ElevenLabs API key to start.", s.has_key ? "ok" : "");
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      $("savekey").onclick = function () {
+        api().save_key($("key").value).then(function () { setStatus("✓ API key saved.", "ok"); boot(); });
+      };
+      $("pickmedia").onclick = function () { api().pick_file().then(function (p) { if (p) $("media").value = p; }); };
+      $("pickout").onclick = function () { api().pick_folder().then(function (p) { if (p) $("outdir").value = p; }); };
+
+      $("gen").onclick = function () {
+        if (!$("media").value || !$("outdir").value) { setStatus("Pick a media file and an output folder.", "err"); return; }
+        busy(true); setStatus("Transcribing… (needs internet)");
+        api().generate($("media").value, $("outdir").value, $("chars").value, $("lines").value, $("secs").value)
+          .then(function (r) { setStatus(r.ok ? "✓ " + r.cues + " cues → " + r.srt : "✗ " + r.error, r.ok ? "ok" : "err"); })
+          .then(function () { busy(false); });
+      };
+
+      $("cut").onclick = function () {
+        if (!$("media").value || !$("outdir").value) { setStatus("Pick a media file and an output folder.", "err"); return; }
+        busy(true); setStatus("Cutting silence… (ffmpeg)");
+        api().cut_silence($("media").value, $("outdir").value, $("thr").value, $("gap").value, $("pad").value,
+          $("withsubs").checked, $("chars").value, $("lines").value, $("secs").value)
+          .then(function (r) {
+            if (!r.ok) { setStatus("✗ " + r.error, "err"); return; }
+            var x = r.result;
+            if (x.status === "nothing_to_cut") setStatus("No silence above the threshold. Nothing cut.", "ok");
+            else setStatus("✓ Removed " + x.removed_secs + "s (kept " + x.kept_secs + "s).\n" + x.out + (x.srt_out ? "\n" + x.srt_out : ""), "ok");
+          }).then(function () { busy(false); });
+      };
+
+      $("insres").onclick = function () {
+        busy(true); setStatus("Installing Resolve script…");
+        api().install_resolve().then(function (r) { setStatus(r.ok ? "✓ " + r.next : "✗ " + r.error, r.ok ? "ok" : "err"); }).then(function () { busy(false); });
+      };
+      $("inspre").onclick = function () {
+        busy(true); setStatus("Installing Premiere panel…");
+        api().install_premiere().then(function (r) { setStatus(r.ok ? "✓ " + r.next : "✗ " + r.error, r.ok ? "ok" : "err"); }).then(function () { busy(false); });
+      };
+    });
+
+    if (window.pywebview) boot(); else window.addEventListener("pywebviewready", boot);
+  </script>
+</body>
+</html>

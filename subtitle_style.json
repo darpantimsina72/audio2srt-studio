@@ -1,0 +1,14 @@
+{
+  "fontFace":          "Noto Serif Devanagari",
+  "bold":              1,
+  "fontSize":          35,
+  "strokeEnabled":     1,
+  "strokeColor":       {"r": 0, "g": 0, "b": 0, "a": 1},
+  "strokeOutsideOnly": 1,
+  "customPosition":    1,
+  "posY":              620,
+  "shadowEnabled":     1,
+  "shadowXOffset":     3,
+  "shadowYOffset":     3,
+  "shadowOpacity":     100
+}

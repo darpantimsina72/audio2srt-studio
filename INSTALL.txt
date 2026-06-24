@@ -1,0 +1,138 @@
+============================================================
+  AUDIO TO SRT
+  Transcribe audio & add subtitles in DaVinci Resolve
+  Powered by ElevenLabs Scribe AI
+============================================================
+
+
+WHAT YOU NEED BEFORE STARTING
+------------------------------
+  1. DaVinci Resolve  (Free or Studio)
+     https://www.blackmagicdesign.com/products/davinciresolve
+
+  2. Python 3.10 or newer
+     https://www.python.org/downloads/
+     (Windows: check "Add Python to PATH" during install)
+
+  3. ElevenLabs account  (free tier works)
+     Sign up and get your API key at:
+     https://elevenlabs.io/app/speech-synthesis/api
+
+
+QUICK SETUP  (recommended)
+---------------------------
+
+  MAC
+  ---
+  1. Put this folder anywhere you like
+     (e.g. Documents, Desktop — doesn't matter)
+
+  2. Double-click  setup.command
+     If Mac says "cannot be opened", right-click it → Open → Open
+
+  3. Follow the prompts — enter your ElevenLabs API key when asked
+
+  4. Done!
+
+
+  WINDOWS
+  -------
+  1. Put this folder anywhere you like
+     (e.g. C:\Users\YourName\Documents)
+
+  2. Double-click  setup.bat
+
+  3. Follow the prompts — enter your ElevenLabs API key when asked
+
+  4. Done!
+
+
+HOW TO USE
+----------
+  1. Open DaVinci Resolve
+  2. Open a project and go to the Edit page
+  3. Make sure your timeline has an audio clip on it
+  4. Click the menu:  Workspace  →  Scripts  →  audio_to_srt
+  5. A dialog will appear — select the audio track to transcribe
+  6. Adjust subtitle settings if needed (or leave the defaults)
+  7. (optional) Auto-cut silence — see below; leave blank to skip
+  8. Wait while ElevenLabs transcribes the audio (internet required)
+  9. Subtitles are automatically added to the timeline
+
+
+AUTO-CUT SILENCE  (optional)
+----------------------------
+  After the subtitle settings, a second box asks:
+      "Auto-cut silence too?   thresholdDB,minGap,pad"
+  Leave it BLANK to skip (subtitles work exactly as before).
+
+  Fill it in (e.g.  -30,0.5,0.05 ) and the script will ALSO render a
+  copy of the clip with the silent gaps removed, plus a matching SRT,
+  and import both into your Media Pool. Your timeline is NOT changed —
+  drop the tightened clip onto a fresh track to use it.
+
+      thresholdDB  how quiet counts as silence (-30 default)
+      minGap       ignore gaps shorter than this, seconds (0.5 default)
+      pad          breath left around speech, seconds (0.05 default)
+
+  Requires ffmpeg (Mac: brew install ffmpeg). Subtitles work without it.
+
+
+SUBTITLE SETTINGS EXPLAINED
+----------------------------
+  When the settings dialog appears, you'll see:  10,1,5
+
+  These three numbers mean:
+    10  →  max characters per line
+     1  →  max lines on screen at once
+     5  →  max seconds per subtitle cue
+
+  Examples:
+    10,1,5   →  short single-line captions (default — Nepali/Hindi style)
+    42,2,7   →  two-line captions, longer phrases (English style)
+
+
+TROUBLESHOOTING
+---------------
+  Script doesn't appear in Resolve menu
+  → Quit and reopen Resolve after setup
+  → On Windows, setup installs to your user script folder first:
+      %APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility
+
+  "No module named elevenlabs"
+  → Run setup again, or manually:
+      Mac:     pip3 install -r requirements.txt
+      Windows: pip install -r requirements.txt
+
+  "ELEVENLABS_API_KEY not set"
+  → Open the .env file in this folder and add:
+      ELEVENLABS_API_KEY=your_key_here
+
+  "No active timeline" error
+  → Make sure you're on the Edit page and a timeline is open
+
+  Subtitles are out of sync
+  → This script syncs to the first clip on the selected audio track
+  → If that clip is trimmed, the script now uses the clip's source in/out
+  → If the track contains multiple separate clips, run the script on the clip you want as the first clip on that track
+
+  Still stuck?
+  → Check the log files in the  logs/  folder inside this directory:
+      audio_to_srt.log            main script log
+      audio_to_srt.log.transcribe transcription output & errors
+      audio_to_srt.log.dialog     dialog / tkinter errors
+
+
+FILES IN THIS FOLDER
+--------------------
+  audio_to_srt.lua   Resolve menu script  (auto-installed by setup)
+  transcribe.py      Handles ElevenLabs transcription
+  dialog.py          Handles on-screen dialogs
+  subtitle_style.json  Font and style settings for subtitles
+  .env               Your API key  (never share this file)
+  requirements.txt   Python packages list
+  setup.command      Mac installer
+  setup.bat          Windows installer
+  INSTALL.txt        This file
+
+============================================================

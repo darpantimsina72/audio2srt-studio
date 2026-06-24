@@ -1,0 +1,150 @@
+============================================================
+  AUDIO TO SRT FOR REAPER
+  Transcribe one selected item and export an SRT file
+  Powered by ElevenLabs Scribe AI
+============================================================
+
+
+WHAT THIS VERSION DOES
+----------------------
+  This is the REAPER version of the original DaVinci Resolve script.
+
+  Workflow:
+  1. Select one audio or video item in REAPER
+  2. Run the script
+  3. The full source audio file behind the selected item is transcribed with ElevenLabs
+  4. An .srt file is exported to your chosen location
+
+  This version does not create subtitle items, tracks, or embedded
+  captions inside REAPER.
+
+  Important:
+  This script reads the full source media file behind the selected item.
+  It does not render the live REAPER track mix with track FX,
+  multiple clips combined, or other tracks mixed in.
+
+
+WHAT YOU NEED
+-------------
+  1. REAPER
+     https://www.reaper.fm/
+
+  2. Python 3.10 or newer
+     https://www.python.org/downloads/
+
+  3. ElevenLabs API key
+     https://elevenlabs.io/app/speech-synthesis/api
+
+  4. Internet connection
+     The transcription request is sent to ElevenLabs online.
+
+  5. One source item in REAPER
+     Select exactly one audio or video item before running the script.
+
+
+SETUP
+-----
+  Files in this folder:
+  - audio_to_srt_reaper.lua   REAPER script
+  - transcribe.py             ElevenLabs transcription helper
+  - setup.command             Mac installer
+  - setup.bat                 Windows installer
+  - .env.example              Example API key file
+  - requirements.txt          Python dependency list
+
+  MAC
+  1. Open this folder
+  2. Double-click setup.command
+  3. In REAPER, open Actions
+  4. Click "ReaScript: Load"
+  5. Load the installed script from:
+     ~/Library/Application Support/REAPER/Scripts/audio_to_srt_reaper.lua
+
+  WINDOWS
+  1. Open this folder
+  2. Double-click setup.bat
+  3. In REAPER, open Actions
+  4. Click "ReaScript: Load"
+  5. Load the installed script from:
+     %APPDATA%\REAPER\Scripts\audio_to_srt_reaper.lua
+
+  API key file
+  1. The setup script can create `.env` for you
+  2. If needed, copy `.env.example` to `.env`
+  3. Put your real key on this line:
+     ELEVENLABS_API_KEY=your_key_here
+
+
+HOW TO USE
+----------
+  1. Open a REAPER project
+  2. Select exactly one audio or video item
+  3. Run audio_to_srt_reaper.lua
+  4. Enter subtitle settings when prompted
+  5. Wait for transcription to finish
+  6. Choose where the .srt file should be saved
+
+
+SUBTITLE SETTINGS
+-----------------
+  Default input:
+    42,2,7
+
+  Meaning:
+    42  -> max characters per line
+     2  -> max lines per cue
+     7  -> max seconds per cue
+
+
+OUTPUT
+------
+  The script suggests a default save path inside:
+    <project path>/audio_to_srt_exports/
+
+  You can change that to any folder you want before transcription runs.
+
+
+NOTES
+-----
+  - The original DaVinci Resolve version is unchanged.
+  - This version only uses REAPER as the source for timing and media
+    selection.
+
+
+TROUBLESHOOTING
+---------------
+  "ELEVENLABS_API_KEY not set"
+  -> Add ELEVENLABS_API_KEY=your_key to .env in this folder
+
+  "Select one media item first"
+  -> Highlight an item in the REAPER arrange view before running
+
+  "Select only one media item at a time"
+  -> Deselect the others and leave just one selected item
+
+  "Could not install elevenlabs"
+  -> Run manually:
+     pip install -r requirements.txt
+
+  Windows says Python is missing
+  -> Install Python from python.org
+  -> During install, enable "Add Python to PATH"
+
+  Mac blocks setup.command
+  -> Right-click setup.command
+  -> Click Open
+  -> Click Open again to confirm
+
+  Script runs but no .srt appears
+  -> Check the output path you entered
+  -> Check logs in:
+     logs/audio_to_srt_reaper.log
+     logs/audio_to_srt_reaper.log.transcribe
+
+  Subtitle file does not match the final mixed REAPER track
+  -> The script transcribes the full source file of the selected item
+  -> It does not transcribe the live REAPER mix with FX or multiple items
+  -> If you need the whole rendered track or final mix, the script needs
+     a render-first workflow instead
+
+============================================================
