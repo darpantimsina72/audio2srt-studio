@@ -124,6 +124,49 @@ _MIME = {
 }
 
 
+_VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".avi", ".mxf", ".m4v", ".webm",
+               ".mts", ".m2ts", ".mpg", ".mpeg", ".wmv"}
+
+
+def extract_audio_for_stt(media_path):
+    """For video files, extract a small mono MP3 to upload instead of the whole
+    video — much smaller/faster and avoids API file-size limits. Word timings
+    are unchanged (the audio stream keeps the same clock). Returns
+    (path_to_upload, is_temp); falls back to the original file if ffmpeg is
+    unavailable or extraction fails.
+    """
+    ext = os.path.splitext(media_path)[1].lower()
+    if ext not in _VIDEO_EXTS:
+        return media_path, False
+
+    try:
+        try:
+            from silence import tool_path
+        except ImportError:
+            from engine.silence import tool_path
+        ffmpeg = tool_path("ffmpeg")
+    except Exception:
+        ffmpeg = None
+    if not ffmpeg:
+        return media_path, False
+
+    import subprocess
+    import tempfile
+    fd, tmp = tempfile.mkstemp(suffix=".mp3", prefix="a2srt_audio_")
+    os.close(fd)
+    res = subprocess.run(
+        [ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
+         "-i", media_path, "-vn", "-ac", "1", "-b:a", "96k", tmp],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if res.returncode != 0 or not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return media_path, False
+    return tmp, True
+
+
 def fetch_words(audio_path, api_key):
     """Run ElevenLabs Scribe and return the raw word objects (source-time)."""
     from elevenlabs import ElevenLabs
@@ -175,7 +218,15 @@ def generate_srt(audio_path, srt_output, max_chars=10, max_lines=1, max_secs=5.0
     if not os.path.exists(audio_path):
         raise RuntimeError("Audio file not found: " + audio_path)
 
-    raw_words = fetch_words(audio_path, api_key)
+    upload_path, is_temp = extract_audio_for_stt(audio_path)
+    try:
+        raw_words = fetch_words(upload_path, api_key)
+    finally:
+        if is_temp:
+            try:
+                os.remove(upload_path)
+            except OSError:
+                pass
     if raw_words is None:
         raise RuntimeError("ElevenLabs returned no word data.")
 

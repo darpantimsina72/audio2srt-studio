@@ -13,6 +13,7 @@ venv/
 # ── Build outputs ─────────────────────────────────────────────────────────
 dist/
 build/temp/
+Audio2SRT App/build/audio2srt/
 *.dmg
 *-Setup.exe
 

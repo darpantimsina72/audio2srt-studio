@@ -37,6 +37,17 @@ local function shell_quote(s)
     return string.format("%q", tostring(s))
 end
 
+-- os.tmpname() on Windows returns a name at the drive root (e.g. "\s1a2."),
+-- which is usually not writable without admin rights; re-root it into %TEMP%.
+local function temp_path(suffix)
+    local base = os.tmpname()
+    if IS_WINDOWS and base:sub(1, 1) == "\\" then
+        local tmp = os.getenv("TEMP") or os.getenv("TMP") or "."
+        base = tmp .. base
+    end
+    return base .. suffix
+end
+
 -- Find Python: check common install locations, fall back to bare command on PATH
 local function command_exists(cmd)
     local check
@@ -273,8 +284,8 @@ if silenceSpec and silenceSpec:match("%S") then
 end
 
 -- ── Call Python for transcription ──────────────────────────────────────────────
-local srtPath   = os.tmpname() .. ".srt"
-local wordsPath = os.tmpname() .. ".words.json"
+local srtPath   = temp_path(".srt")
+local wordsPath = temp_path(".words.json")
 
 log("Transcribing...")
 
@@ -412,8 +423,13 @@ if doSilence then
         local ef = io.open(LOG_FILE .. ".silence")
         local em = ef and ef:read("*a") or ""
         if ef then ef:close() end
-        silenceMsg = "\n\n(Silence cut failed — is ffmpeg installed? See logs/audio_to_srt.log.silence)"
-        log("Silence cut failed: " .. (em or ""):sub(1, 300))
+        if ssuccess and em:find('"nothing_to_cut"', 1, true) then
+            silenceMsg = "\n\nNo silence found above the threshold — nothing was cut."
+            log("Silence: nothing to cut")
+        else
+            silenceMsg = "\n\n(Silence cut failed — is ffmpeg installed? See logs/audio_to_srt.log.silence)"
+            log("Silence cut failed: " .. (em or ""):sub(1, 300))
+        end
     end
 end
 

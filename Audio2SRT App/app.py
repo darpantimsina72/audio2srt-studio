@@ -243,14 +243,24 @@ class Api:
         set_api_key(key)
         return {"ok": True}
 
+    @staticmethod
+    def _dialog_kind(name_new, name_old):
+        # pywebview 5 moved constants to webview.FileDialog; keep 4.x working.
+        import webview
+        fd = getattr(webview, "FileDialog", None)
+        kind = getattr(fd, name_new, None) if fd else None
+        return kind if kind is not None else getattr(webview, name_old)
+
     def pick_file(self):
         import webview
-        res = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG)
+        res = webview.windows[0].create_file_dialog(
+            self._dialog_kind("OPEN", "OPEN_DIALOG"))
         return res[0] if res else None
 
     def pick_folder(self):
         import webview
-        res = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        res = webview.windows[0].create_file_dialog(
+            self._dialog_kind("FOLDER", "FOLDER_DIALOG"))
         return res[0] if res else None
 
     def generate(self, media, out_dir, chars, lines, secs):

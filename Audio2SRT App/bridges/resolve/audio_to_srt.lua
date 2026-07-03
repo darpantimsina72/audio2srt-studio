@@ -12,6 +12,17 @@ local function trim(s)
     return (tostring(s or ""):match("^%s*(.-)%s*$"))
 end
 
+-- os.tmpname() on Windows returns a name at the drive root (e.g. "\s1a2."),
+-- which is usually not writable without admin rights; re-root it into %TEMP%.
+local function temp_path(suffix)
+    local base = os.tmpname()
+    if IS_WINDOWS and base:sub(1, 1) == "\\" then
+        local tmp = os.getenv("TEMP") or os.getenv("TMP") or "."
+        base = tmp .. base
+    end
+    return base .. suffix
+end
+
 -- ── Find the installed app via the marker file ~/.audio2srt_app ──────────────────
 local function home()
     return os.getenv("HOME") or os.getenv("USERPROFILE") or ""
@@ -160,8 +171,8 @@ if doSilence then
 end
 
 -- ── Transcribe ─────────────────────────────────────────────────────────────────────
-local srtPath   = os.tmpname() .. ".srt"
-local wordsPath = os.tmpname() .. ".words.json"
+local srtPath   = temp_path(".srt")
+local wordsPath = temp_path(".words.json")
 log("Transcribing...")
 local cmd = string.format(
     '%s transcribe %s %s %d %d %s %s %s %s --words-out %s > %s 2>&1',
@@ -258,7 +269,14 @@ if doSilence then
         silenceMsg = "\n\nSilence: " .. marks .. " markers added on the timeline.\nTightened clip + SRT imported to Media Pool:\n" .. outMedia
     else
         if mc then mc:close() end
-        silenceMsg = "\n\nSilence: " .. marks .. " markers added (tightened-clip render failed — see logs)."
+        local ef = io.open(LOG_FILE .. ".silence")
+        local em = ef and ef:read("*a") or ""
+        if ef then ef:close() end
+        if ssuccess and em:find('"nothing_to_cut"', 1, true) then
+            silenceMsg = "\n\nNo silence found above the threshold — nothing was cut."
+        else
+            silenceMsg = "\n\nSilence: " .. marks .. " markers added (tightened-clip render failed — see logs)."
+        end
     end
 end
 

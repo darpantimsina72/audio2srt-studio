@@ -7,7 +7,8 @@ import os
 import sys
 from PyInstaller.utils.hooks import collect_all
 
-APP_BUILD_DIR = os.path.dirname(os.path.abspath(SPECPATH))   # .../Audio2SRT App/build
+# SPECPATH is the directory containing this spec file (not the file path).
+APP_BUILD_DIR = os.path.abspath(SPECPATH)                    # .../Audio2SRT App/build
 ROOT = os.path.dirname(APP_BUILD_DIR)                        # .../Audio2SRT App
 
 datas = [
@@ -24,6 +25,7 @@ hiddenimports = [
     "engine", "engine.transcribe", "engine.silence",
     "transcribe", "silence", "dialog", "installers",
     "webview", "elevenlabs",
+    "tkinter", "tkinter.ttk",   # dialog.py — Resolve bridge track picker / alerts
 ]
 
 # elevenlabs drags in pydantic / pydantic_core / httpx — pull everything so the
@@ -56,7 +58,7 @@ exe = EXE(
     name="Audio2SRT Studio",
     console=False,          # GUI app; CLI still works when launched with args
     disable_windowed_traceback=False,
-    argv_emulation=True,    # macOS: receive file-open args
+    argv_emulation=False,   # would add Apple-event wait to every CLI call from the bridges
     target_arch=None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="Audio2SRT Studio")
