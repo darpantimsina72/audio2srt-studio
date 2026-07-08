@@ -351,10 +351,14 @@ def gui():
 def main():
     # Windows streams default to cp1252; error messages that quote a
     # non-ASCII media path would crash the CLI the bridges depend on.
+    # line_buffering: windowed builds block-buffer pipes and the final
+    # interpreter-shutdown flush can fail (EINVAL) — the bridges would then
+    # capture nothing. Flushing at each newline delivers output immediately.
     if sys.platform == "win32":
         for _stream in (sys.stdout, sys.stderr):
             try:
-                _stream.reconfigure(encoding="utf-8", errors="replace")
+                _stream.reconfigure(encoding="utf-8", errors="replace",
+                                    line_buffering=True)
             except (AttributeError, OSError):
                 pass
     args = sys.argv[1:]

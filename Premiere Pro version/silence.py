@@ -25,11 +25,13 @@ import subprocess
 import sys
 
 # Match transcribe.py: Windows streams default to cp1252 and crash printing
-# non-ASCII paths in error messages.
+# non-ASCII paths in error messages; line_buffering so windowed builds deliver
+# output to callers even if the shutdown flush fails.
 if sys.platform == "win32":
     for _stream in (sys.stdout, sys.stderr):
         try:
-            _stream.reconfigure(encoding="utf-8", errors="replace")
+            _stream.reconfigure(encoding="utf-8", errors="replace",
+                                line_buffering=True)
         except (AttributeError, OSError):
             pass
 

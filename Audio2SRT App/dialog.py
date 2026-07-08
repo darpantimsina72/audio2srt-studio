@@ -125,7 +125,8 @@ def main():
     # Devanagari would crash and look like the user pressed Cancel.
     for _stream in (sys.stdout, sys.stderr):
         try:
-            _stream.reconfigure(encoding="utf-8", errors="replace")
+            _stream.reconfigure(encoding="utf-8", errors="replace",
+                                line_buffering=True)
         except (AttributeError, OSError):
             pass
     try:

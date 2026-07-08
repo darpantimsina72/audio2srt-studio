@@ -13,10 +13,13 @@ import sys
 # Windows consoles/redirects default to a legacy codepage (cp1252): printing a
 # Devanagari/emoji filename would crash before the API is even called. Force
 # UTF-8 on the standard streams (no-op on mac/Linux and frozen GUI builds).
+# line_buffering: windowed builds block-buffer pipes and the shutdown flush can
+# fail silently — flush per line so callers always receive our output.
 if sys.platform == "win32":
     for _stream in (sys.stdout, sys.stderr):
         try:
-            _stream.reconfigure(encoding="utf-8", errors="replace")
+            _stream.reconfigure(encoding="utf-8", errors="replace",
+                                line_buffering=True)
         except (AttributeError, OSError):
             pass
 

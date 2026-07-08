@@ -82,8 +82,9 @@ jobs:
         shell: pwsh
         run: |
           $bin = "dist/Audio2SRT Studio/Audio2SRT Studio.exe"
-          & $bin where
-          if (-not ((& $bin where) -match '"ffmpeg": true')) { throw "bundled ffmpeg missing" }
+          $where = (& $bin where) -join "`n"
+          Write-Host "where -> $where"
+          if (-not ($where -match '"ffmpeg": true')) { throw "bundled ffmpeg missing" }
           if (-not (Get-ChildItem "dist/Audio2SRT Studio/_internal" -Recurse -Filter "_tkinter*")) { throw "tkinter not bundled" }
           & "bin/ffmpeg.exe" -y -hide_banner -loglevel error -f lavfi `
             -i "sine=frequency=440:duration=6" `
