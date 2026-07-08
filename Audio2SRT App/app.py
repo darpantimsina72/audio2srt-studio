@@ -29,7 +29,12 @@ from engine import transcribe as t_engine   # noqa: E402
 from engine import silence as s_engine       # noqa: E402
 
 APP_NAME = "Audio2SRT Studio"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
+
+# Where the in-app updater looks for new releases (the CI publishes here on
+# every `v*` tag). owner/name only — the API + page URLs are derived below.
+GITHUB_REPO = "darpantimsina72/audio2srt-studio"
+RELEASES_PAGE = "https://github.com/%s/releases/latest" % GITHUB_REPO
 
 
 # ── User config (API key) + install marker ───────────────────────────────────────
@@ -99,6 +104,95 @@ def ffmpeg_ok():
     return s_engine.have("ffmpeg") and s_engine.have("ffprobe")
 
 
+# ── Update check ─────────────────────────────────────────────────────────────────
+def _version_tuple(s):
+    """'v1.2.10' -> (1, 2, 10). Non-numeric parts drop to 0 so a malformed
+    tag can never look newer than a real one."""
+    s = (s or "").lstrip("vV").strip()
+    out = []
+    for part in s.split("."):
+        digits = "".join(ch for ch in part if ch.isdigit())
+        out.append(int(digits) if digits else 0)
+    return tuple(out) or (0,)
+
+
+def latest_release():
+    """Ask GitHub for the newest published release. Returns
+    {version, url} or None (offline / rate-limited / no releases). Never raises
+    — a failed update check must not break launching the app."""
+    import urllib.request
+    api = "https://api.github.com/repos/%s/releases/latest" % GITHUB_REPO
+    try:
+        req = urllib.request.Request(api, headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Audio2SRT-Studio",
+        })
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.load(resp)
+        tag = data.get("tag_name") or ""
+        if not tag:
+            return None
+        return {"version": tag.lstrip("vV"),
+                "url": data.get("html_url") or RELEASES_PAGE}
+    except Exception:  # noqa: BLE001 — network/JSON/timeout all mean "no update info"
+        return None
+
+
+def update_status():
+    """Compare the running version against the latest release."""
+    info = latest_release()
+    if not info:
+        return {"checked": False, "update": False, "current": APP_VERSION}
+    newer = _version_tuple(info["version"]) > _version_tuple(APP_VERSION)
+    return {"checked": True, "update": newer, "current": APP_VERSION,
+            "latest": info["version"], "url": info["url"]}
+
+
+# ── Bridge install + auto-refresh ────────────────────────────────────────────────
+# The bridge files (Resolve .lua / Premiere panel) are *copies* living in the NLE's
+# own folders, so a fix to the .lua/.jsx only reaches the user when they're copied
+# again. We remember which bridges were installed and at what app version, then
+# silently re-copy them after an update so timeline fixes land without a re-click.
+def _record_bridge(kind, result):
+    if not (result or {}).get("ok"):
+        return result
+    cfg = load_config()
+    installed = cfg.get("bridges") or {}
+    installed[kind] = True
+    cfg["bridges"] = installed
+    cfg["bridges_version"] = APP_VERSION
+    save_config(cfg)
+    return result
+
+
+def do_install_resolve():
+    from installers import install_resolve
+    return _record_bridge("resolve", install_resolve(RES_DIR, write_marker()))
+
+
+def do_install_premiere():
+    from installers import install_premiere
+    return _record_bridge("premiere", install_premiere(RES_DIR, write_marker()))
+
+
+def refresh_bridges_if_updated():
+    """On launch: if bridges were installed under an older version, re-copy them
+    quietly so the newest .lua/.jsx is in place. Best-effort; never blocks the UI."""
+    cfg = load_config()
+    installed = cfg.get("bridges") or {}
+    if not installed:
+        return
+    if cfg.get("bridges_version") == APP_VERSION:
+        return
+    try:
+        if installed.get("resolve"):
+            do_install_resolve()
+        if installed.get("premiere"):
+            do_install_premiere()
+    except Exception:  # noqa: BLE001 — a refresh failure must not stop the app
+        pass
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def _kv(args):
     """Parse '--flag value' pairs and bare positionals."""
@@ -122,7 +216,7 @@ def _kv(args):
 def cli(argv):
     if not argv:
         print("commands: transcribe | silence | detect | set-key | where | "
-              "install-resolve | install-premiere")
+              "update | install-resolve | install-premiere")
         return 1
 
     cmd, rest = argv[0], argv[1:]
@@ -214,13 +308,15 @@ def cli(argv):
             return 0
 
         if cmd == "install-resolve":
-            from installers import install_resolve
-            print(json.dumps(install_resolve(RES_DIR, write_marker())))
+            print(json.dumps(do_install_resolve()))
             return 0
 
         if cmd == "install-premiere":
-            from installers import install_premiere
-            print(json.dumps(install_premiere(RES_DIR, write_marker())))
+            print(json.dumps(do_install_premiere()))
+            return 0
+
+        if cmd == "update":
+            print(json.dumps(update_status()))
             return 0
 
     except Exception as exc:  # noqa: BLE001 — CLI surface, report cleanly
@@ -238,6 +334,15 @@ class Api:
     def status(self):
         return {"version": APP_VERSION, "ffmpeg": ffmpeg_ok(),
                 "has_key": bool(get_api_key())}
+
+    def check_update(self):
+        # Called from the UI on boot (best-effort; returns update=False offline).
+        return update_status()
+
+    def open_releases(self, url=None):
+        import webbrowser
+        webbrowser.open(url or RELEASES_PAGE)
+        return {"ok": True}
 
     def save_key(self, key):
         set_api_key(key)
@@ -300,12 +405,10 @@ class Api:
             return {"ok": False, "error": str(exc)}
 
     def install_resolve(self):
-        from installers import install_resolve
-        return install_resolve(RES_DIR, write_marker())
+        return do_install_resolve()
 
     def install_premiere(self):
-        from installers import install_premiere
-        return install_premiere(RES_DIR, write_marker())
+        return do_install_premiere()
 
 
 def gui():
@@ -317,6 +420,7 @@ def gui():
             "(or run the CLI:  app where | transcribe | silence)\n")
         return 1
     write_marker()
+    refresh_bridges_if_updated()
     html = os.path.join(RES_DIR, "ui", "index.html")
     try:
         webview.create_window(APP_NAME + " " + APP_VERSION, html,

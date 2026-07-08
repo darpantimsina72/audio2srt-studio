@@ -35,6 +35,17 @@ Audio2SRT Studio (one binary)
 There is no Python, pip, ffmpeg, or PlayerDebugMode step for the end user — the app
 does it all.
 
+### Updates
+On launch the app calls the GitHub Releases API (`GITHUB_REPO` in `app.py`) and
+compares the newest tag to `APP_VERSION`. If newer, the UI shows a bar with a
+**Get update** button that opens the Releases page. To ship an update: bump
+`APP_VERSION`, commit, and `git tag vX.Y.Z && git push --tags` — CI builds and
+publishes the installers, and every running app then sees the new version.
+Bridges (Resolve `.lua` / Premiere panel) are re-copied automatically on the
+next launch after the app version changes, so their fixes reach the timeline.
+The repo must stay **public** for the unauthenticated update check and asset
+downloads to work.
+
 ## Build it (developer machine)
 Needs Python **3.10–3.13** (PyInstaller doesn't support 3.14 yet).
 

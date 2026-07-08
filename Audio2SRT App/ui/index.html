@@ -33,12 +33,21 @@
       padding: 10px 12px; min-height: 52px; white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace;
       font-size: 11.5px; color: #aebbd0; max-height: 170px; overflow: auto; }
     .err { color: #ff8a80; } .ok { color: #8ce99a; }
+    #updbar { display: none; align-items: center; gap: 10px; margin: 0 0 14px;
+      background: #1d3357; border: 1px solid #2f5490; border-radius: 7px; padding: 9px 11px; }
+    #updbar .txt { flex: 1; color: #cfe0ff; font-size: 12px; }
+    #updbar button { padding: 7px 11px; font-size: 12px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Audio2SRT Studio <span id="ffpill" class="pill">…</span></h1>
     <p class="sub">ElevenLabs Scribe subtitles · ffmpeg silence cut · bundled, no setup</p>
+
+    <div id="updbar">
+      <span class="txt" id="updtxt"></span>
+      <button id="updbtn">Get update</button>
+    </div>
 
     <label for="key">ElevenLabs API key</label>
     <div class="filerow">
@@ -110,6 +119,16 @@
         else { p.className = "pill no"; p.textContent = "ffmpeg ✗"; }
         setStatus(s.has_key ? "Ready." : "Add your ElevenLabs API key to start.", s.has_key ? "ok" : "");
       });
+      // Non-blocking update check — stays hidden when offline or up to date.
+      if (api().check_update) {
+        api().check_update().then(function (u) {
+          if (u && u.update) {
+            $("updtxt").textContent = "Update available: v" + u.latest + " (you have v" + u.current + ").";
+            var bar = $("updbar"); bar.style.display = "flex";
+            $("updbtn").onclick = function () { api().open_releases(u.url); };
+          }
+        });
+      }
     }
 
     document.addEventListener("DOMContentLoaded", function () {

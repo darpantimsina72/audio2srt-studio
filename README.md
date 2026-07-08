@@ -22,6 +22,14 @@ Then, inside the app:
    - **Resolve:** Workspace → Scripts → `audio_to_srt`
    - **Premiere:** Window → Extensions → **Audio to SRT**
 
+### Updating
+The app checks GitHub on launch. When a newer version exists, a bar appears at
+the top — click **Get update** to open the download page, grab the new
+installer, and run it (it installs over the old one). If the Resolve script /
+Premiere panel were installed, the app refreshes them automatically after an
+update, so subtitle-style and timing fixes reach your timeline without
+re-clicking Install.
+
 Everything below this line is the older script-based setup — only needed if you
 don't want the app.
 
