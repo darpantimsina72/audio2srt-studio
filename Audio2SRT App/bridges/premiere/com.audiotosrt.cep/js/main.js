@@ -133,12 +133,15 @@
         var info = lastJson(res.out);
         if (res.code !== 0 || !info) throw new Error((res.out + "\n" + res.err).trim().slice(0, 700) || "Detect failed.");
         // Map source-time cuts -> sequence-time, clamped to the clip's used range.
+        // If outPoint could not be read (srcEnd 0) treat the clip as untrimmed —
+        // otherwise every cut would be silently skipped.
+        var srcEnd = (c.srcEnd > c.srcStart) ? c.srcEnd : Number.MAX_VALUE;
         var seqCuts = [];
         (info.cuts || []).forEach(function (cut) {
           var cs = cut[0], ce = cut[1];
-          if (ce <= c.srcStart || cs >= c.srcEnd) return;
+          if (ce <= c.srcStart || cs >= srcEnd) return;
           var s = Math.max(cs, c.srcStart) - c.srcStart + c.offset;
-          var e = Math.min(ce, c.srcEnd) - c.srcStart + c.offset;
+          var e = Math.min(ce, srcEnd) - c.srcStart + c.offset;
           if (e - s > 0.02) seqCuts.push([s, e]);
         });
         append("Found " + seqCuts.length + " silent region(s) in the clip.");

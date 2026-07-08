@@ -318,9 +318,33 @@ def gui():
         return 1
     write_marker()
     html = os.path.join(RES_DIR, "ui", "index.html")
-    webview.create_window(APP_NAME + " " + APP_VERSION, html,
-                          js_api=Api(), width=440, height=720, min_size=(420, 600))
-    webview.start()
+    try:
+        webview.create_window(APP_NAME + " " + APP_VERSION, html,
+                              js_api=Api(), width=440, height=720,
+                              min_size=(420, 600))
+        webview.start()
+    except Exception as exc:  # noqa: BLE001 — GUI hosts vary wildly
+        # Windowed builds have no console: persist the error and tell the user
+        # with tkinter (bundled). Most common cause on Windows: WebView2
+        # runtime missing (old Win10 without Edge updates).
+        msg = ("The app window could not open.\n\n%s\n\n"
+               "On Windows, install the Microsoft WebView2 runtime:\n"
+               "https://developer.microsoft.com/microsoft-edge/webview2/\n\n"
+               "The command line still works meanwhile "
+               "(Audio2SRT Studio.exe where | transcribe | silence)." % exc)
+        try:
+            with open(os.path.join(config_dir(), "gui_error.log"), "w",
+                      encoding="utf-8") as f:
+                f.write(msg)
+        except OSError:
+            pass
+        try:
+            import dialog as dialog_mod
+            sys.argv = ["app", "alert_error", APP_NAME, msg]
+            dialog_mod.main()
+        except Exception:  # noqa: BLE001
+            sys.stderr.write(msg + "\n")
+        return 1
     return 0
 
 

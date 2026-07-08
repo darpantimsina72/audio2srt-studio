@@ -262,11 +262,14 @@ if doSilence then
         shell_quote(LOG_FILE .. ".detect"))
     local out = popen_read(detectCmd)
     local marks = 0
+    -- If the source out-point could not be read (0), treat the clip as
+    -- untrimmed — otherwise every marker would be silently skipped.
+    local srcEndEff = (sourceEndSecs > sourceStartSecs) and sourceEndSecs or math.huge
     for line in tostring(out):gmatch("[^\r\n]+") do
         local cs, ce = line:match("^([%-%d%.]+)%s+([%-%d%.]+)$")
         if cs then
             cs, ce = tonumber(cs), tonumber(ce)
-            if cs and ce and cs >= sourceStartSecs and cs <= sourceEndSecs then
+            if cs and ce and cs >= sourceStartSecs and cs <= srcEndEff then
                 local seqSecs = (cs - sourceStartSecs) + timelineOffsetSecs
                 local frameId = math.floor(seqSecs * fps + 0.5)
                 local dur = math.max(1, math.floor((ce - cs) * fps + 0.5))

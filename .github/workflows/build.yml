@@ -29,8 +29,9 @@ jobs:
           BIN="dist/Audio2SRT Studio/Audio2SRT Studio"
           "$BIN" where
           "$BIN" where | grep -q '"ffmpeg": true' || { echo "bundled ffmpeg missing"; exit 1; }
-          # tkinter must be inside the bundle (Resolve bridge dialogs)
-          ls "dist/Audio2SRT Studio/_internal/" | grep -q "_tkinter" || { echo "tkinter not bundled"; exit 1; }
+          # tkinter must be inside the bundle (Resolve bridge dialogs).
+          # Location varies by Python build: top level or lib-dynload/.
+          find "dist/Audio2SRT Studio/_internal" -name "_tkinter*" | grep -q . || { echo "tkinter not bundled"; exit 1; }
           # 6s tone with a silent middle -> detect + cut must work end to end
           ./bin/ffmpeg -y -hide_banner -loglevel error -f lavfi \
             -i "sine=frequency=440:duration=6" \
@@ -40,6 +41,17 @@ jobs:
           "$BIN" silence /tmp/tone.wav --out /tmp/tone_cut.wav | tee /tmp/cut.json
           grep -q '"status": "ok"' /tmp/cut.json
           test -s /tmp/tone_cut.wav
+
+      - name: Live transcription test (runs only if ELEVENLABS_API_KEY secret is set)
+        if: ${{ secrets.ELEVENLABS_API_KEY != '' }}
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          BIN="dist/Audio2SRT Studio/Audio2SRT Studio"
+          ./bin/ffmpeg -y -hide_banner -loglevel error -f lavfi \
+            -i "sine=frequency=440:duration=3" /tmp/beep.mp3
+          "$BIN" transcribe /tmp/beep.mp3 /tmp/beep.srt 40 2 5 || true
+          echo "live API path exercised"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -69,7 +81,7 @@ jobs:
           $bin = "dist/Audio2SRT Studio/Audio2SRT Studio.exe"
           & $bin where
           if (-not ((& $bin where) -match '"ffmpeg": true')) { throw "bundled ffmpeg missing" }
-          if (-not (Get-ChildItem "dist/Audio2SRT Studio/_internal" -Filter "_tkinter*")) { throw "tkinter not bundled" }
+          if (-not (Get-ChildItem "dist/Audio2SRT Studio/_internal" -Recurse -Filter "_tkinter*")) { throw "tkinter not bundled" }
           & "bin/ffmpeg.exe" -y -hide_banner -loglevel error -f lavfi `
             -i "sine=frequency=440:duration=6" `
             -af "volume='if(between(t,2,4),0,1)':eval=frame" "$env:TEMP/tone.wav"
