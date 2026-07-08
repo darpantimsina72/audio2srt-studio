@@ -9,6 +9,9 @@ on:
 jobs:
   mac:
     runs-on: macos-14
+    env:
+      # secrets aren't readable inside step `if:` expressions — hoist a flag.
+      HAS_XI_KEY: ${{ secrets.ELEVENLABS_API_KEY != '' }}
     defaults:
       run:
         working-directory: Audio2SRT App
@@ -43,7 +46,7 @@ jobs:
           test -s /tmp/tone_cut.wav
 
       - name: Live transcription test (runs only if ELEVENLABS_API_KEY secret is set)
-        if: ${{ secrets.ELEVENLABS_API_KEY != '' }}
+        if: env.HAS_XI_KEY == 'true'
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |

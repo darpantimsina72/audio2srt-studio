@@ -48,12 +48,16 @@ echo [3/4] PyInstaller...
 if errorlevel 1 ( echo   ERROR: build failed. If it mentions elevenlabs/pydantic, see README. & if not defined CI pause & exit /b 1 )
 
 echo [4/4] Optional one-click installer (Inno Setup)...
-where iscc >nul 2>nul
-if %errorlevel%==0 (
-  iscc build\installer.iss && echo   installer -> dist\Audio2SRT-Studio-Setup.exe
+if defined CI (
+  echo   CI detected - the workflow runs Inno Setup as its own step.
 ) else (
-  echo   Inno Setup ^(iscc^) not found - skipping. Ship dist\Audio2SRT Studio\ as a zip,
-  echo   or install Inno Setup ^(https://jrsoftware.org/isinfo.php^) to make a single .exe.
+  where iscc >nul 2>nul
+  if not errorlevel 1 (
+    iscc build\installer.iss && echo   installer -> dist\Audio2SRT-Studio-Setup.exe
+  ) else (
+    echo   Inno Setup ^(iscc^) not found - skipping. Ship dist\Audio2SRT Studio\ as a zip,
+    echo   or install Inno Setup ^(https://jrsoftware.org/isinfo.php^) to make a single .exe.
+  )
 )
 
 echo.

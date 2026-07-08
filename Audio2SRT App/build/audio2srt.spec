@@ -28,9 +28,13 @@ hiddenimports = [
     "tkinter", "tkinter.ttk",   # dialog.py — Resolve bridge track picker / alerts
 ]
 
-# elevenlabs drags in pydantic / pydantic_core / httpx — pull everything so the
-# untested frozen build doesn't crash on a missing submodule or data file.
-for pkg in ("elevenlabs", "pydantic", "pydantic_core", "certifi", "httpx", "httpcore"):
+# pydantic / pydantic_core / httpx use dynamic imports and data files — pull
+# them wholesale. elevenlabs itself is deliberately NOT collect_all'd: the SDK
+# is fern-generated with filenames so long that the full package blows past
+# Windows' 260-char MAX_PATH inside the installer; its imports are static, so
+# PyInstaller's normal analysis (via the hiddenimport above) bundles what the
+# speech-to-text client actually uses.
+for pkg in ("pydantic", "pydantic_core", "certifi", "httpx", "httpcore"):
     try:
         d, b, h = collect_all(pkg)
         datas += d
