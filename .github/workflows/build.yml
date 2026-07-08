@@ -78,24 +78,26 @@ jobs:
         shell: cmd
         run: build\build_win.bat
 
+      # cmd + file redirection on purpose: that's exactly how the Resolve Lua
+      # bridge invokes the app. PowerShell can't capture stdout of a windowed
+      # (GUI-subsystem) exe at all, so pwsh would test the wrong thing.
       - name: Smoke test (CLI + silence cut, no API needed)
-        shell: pwsh
+        shell: cmd
         run: |
-          $bin = "dist/Audio2SRT Studio/Audio2SRT Studio.exe"
-          $where = (& $bin where) -join "`n"
-          Write-Host "where -> $where"
-          if (-not ($where -match '"ffmpeg": true')) { throw "bundled ffmpeg missing" }
-          if (-not (Get-ChildItem "dist/Audio2SRT Studio/_internal" -Recurse -Filter "_tkinter*")) { throw "tkinter not bundled" }
-          & "bin/ffmpeg.exe" -y -hide_banner -loglevel error -f lavfi `
-            -i "sine=frequency=440:duration=6" `
-            -af "volume='if(between(t,2,4),0,1)':eval=frame" "$env:TEMP/tone.wav"
-          $detect = & $bin detect "$env:TEMP/tone.wav" --threshold -40dB --min-silence 0.5
-          Write-Host $detect
-          if (-not ($detect -match '"method": "ffmpeg"')) { throw "detect failed" }
-          $cut = & $bin silence "$env:TEMP/tone.wav" --out "$env:TEMP/tone_cut.wav"
-          Write-Host $cut
-          if (-not ($cut -match '"status": "ok"')) { throw "silence cut failed" }
-          if (-not (Test-Path "$env:TEMP/tone_cut.wav")) { throw "no output media" }
+          set "BIN=dist\Audio2SRT Studio\Audio2SRT Studio.exe"
+          "%BIN%" where > "%TEMP%\where.json" 2>&1
+          type "%TEMP%\where.json"
+          findstr /C:"\"ffmpeg\": true" "%TEMP%\where.json" >nul || exit /b 1
+          dir /s /b "dist\Audio2SRT Studio\_internal" | findstr /I "_tkinter" >nul || ( echo tkinter not bundled & exit /b 1 )
+          "bin\ffmpeg.exe" -y -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:duration=6" -af "volume='if(between(t,2,4),0,1)':eval=frame" "%TEMP%\tone.wav" || exit /b 1
+          "%BIN%" detect "%TEMP%\tone.wav" --threshold -40dB --min-silence 0.5 > "%TEMP%\detect.json" 2>&1
+          type "%TEMP%\detect.json"
+          findstr /C:"\"method\": \"ffmpeg\"" "%TEMP%\detect.json" >nul || ( echo detect failed & exit /b 1 )
+          "%BIN%" silence "%TEMP%\tone.wav" --out "%TEMP%\tone_cut.wav" > "%TEMP%\cut.json" 2>&1
+          type "%TEMP%\cut.json"
+          findstr /C:"\"status\": \"ok\"" "%TEMP%\cut.json" >nul || ( echo silence cut failed & exit /b 1 )
+          if not exist "%TEMP%\tone_cut.wav" ( echo no output media & exit /b 1 )
+          echo SMOKE OK
 
       - name: One-click installer (Inno Setup)
         shell: pwsh
