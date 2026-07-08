@@ -24,6 +24,15 @@ import shutil
 import subprocess
 import sys
 
+# Match transcribe.py: Windows streams default to cp1252 and crash printing
+# non-ASCII paths in error messages.
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
 PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Reuse the cue/SRT builders so the re-timed SRT matches transcribe.py exactly.
@@ -271,7 +280,8 @@ def run_silence(media, out, srt_out=None, words_path=None, words=None,
     if srt_out and words is not None:
         retimed = retime_words(words, cuts)
         cues = build_cues(retimed, int(max_chars), int(max_lines), float(max_secs))
-        with open(srt_out, "w", encoding="utf-8") as f:
+        # utf-8-sig: BOM so Windows NLEs detect UTF-8 (see transcribe.py).
+        with open(srt_out, "w", encoding="utf-8-sig") as f:
             f.write(to_srt(cues))
         cues_written = len(cues)
 

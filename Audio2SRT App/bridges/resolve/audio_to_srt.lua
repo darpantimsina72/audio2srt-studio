@@ -5,7 +5,33 @@
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 
 local function shell_quote(s)
-    return string.format("%q", tostring(s))
+    s = tostring(s or "")
+    if IS_WINDOWS then
+        -- cmd.exe: backslashes are literal, so plain quotes are enough
+        -- (Lua's %q doubles backslashes, which corrupts UNC/trailing-slash
+        -- paths). Windows filenames cannot contain quotes; strip just in case.
+        return '"' .. s:gsub('"', "") .. '"'
+    end
+    -- POSIX: single quotes disable every metacharacter ($ ` \ etc.).
+    return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+
+-- cmd.exe's /c parser can strip the opening quote of a command line that
+-- starts with a quoted path ("C:\Program Files\...") and then split on the
+-- space. Wrapping the whole line in one extra pair of quotes disables that
+-- (documented in `cmd /?`). io.popen/os.execute both go through cmd /c.
+local function run_shell(cmd)
+    if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+    return os.execute(cmd)
+end
+
+local function popen_read(cmd)
+    if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+    local h = io.popen(cmd)
+    if not h then return "" end
+    local out = h:read("*a") or ""
+    h:close()
+    return out
 end
 
 local function trim(s)
@@ -71,9 +97,7 @@ local function pydialog(...)
     if not PREFIX then return "" end
     local cmd = PREFIX .. " dialog"
     for _, a in ipairs({ ... }) do cmd = cmd .. " " .. shell_quote(a) end
-    local h = io.popen(cmd)
-    local r = h:read("*a"); h:close()
-    return trim(r)
+    return trim(popen_read(cmd))
 end
 
 local function alert(title, msg) pydialog("alert", title, msg) end
@@ -181,7 +205,7 @@ local cmd = string.format(
     tostring(sourceStartSecs), tostring(sourceEndSecs), tostring(timelineOffsetSecs),
     shell_quote(wordsPath), shell_quote(LOG_FILE .. ".transcribe"))
 log("Run: " .. cmd)
-local ok = os.execute(cmd)
+local ok = run_shell(cmd)
 local success = (ok == true) or (type(ok) == "number" and ok == 0)
 local check = io.open(srtPath)
 if not (success and check) then
@@ -208,13 +232,25 @@ os.remove(srtPath)
 
 local items = timeline:GetItemListInTrack("subtitle", 1) or {}
 local count = #items
+
+-- Style. Font: "Noto Serif Devanagari" ships with macOS but not Windows —
+-- there it renders as tofu boxes; "Nirmala UI" is Windows' bundled Devanagari
+-- font. Size/position were tuned on 1080p; scale them to the timeline
+-- resolution or subtitles land off-frame / oversized on 720p and 4K.
+local resH = tonumber(timeline:GetSetting("timelineResolutionHeight")) or 1080
+local styleScale = resH / 1080
+local fontFace = IS_WINDOWS and "Nirmala UI" or "Noto Serif Devanagari"
 for _, item in ipairs(items) do
-    item:SetProperty("fontFace", "Noto Serif Devanagari")
-    item:SetProperty("bold", 1); item:SetProperty("fontSize", 35)
+    item:SetProperty("fontFace", fontFace)
+    item:SetProperty("bold", 1)
+    item:SetProperty("fontSize", math.floor(35 * styleScale + 0.5))
     item:SetProperty("strokeEnabled", 1); item:SetProperty("strokeOutsideOnly", 1)
-    item:SetProperty("customPosition", 1); item:SetProperty("posY", 620)
-    item:SetProperty("shadowEnabled", 1); item:SetProperty("shadowXOffset", 3)
-    item:SetProperty("shadowYOffset", 3); item:SetProperty("shadowOpacity", 100)
+    item:SetProperty("customPosition", 1)
+    item:SetProperty("posY", math.floor(620 * styleScale + 0.5))
+    item:SetProperty("shadowEnabled", 1)
+    item:SetProperty("shadowXOffset", math.max(1, math.floor(3 * styleScale + 0.5)))
+    item:SetProperty("shadowYOffset", math.max(1, math.floor(3 * styleScale + 0.5)))
+    item:SetProperty("shadowOpacity", 100)
 end
 
 -- ── Silence: markers (Resolve API can't ripple-delete) + tightened clip export ─────
@@ -224,8 +260,7 @@ if doSilence then
     local detectCmd = string.format('%s detect %s --lines --threshold %s --min-silence %s --pad %s 2>%s',
         PREFIX, shell_quote(audioPath), shell_quote(silThr), shell_quote(silGap), shell_quote(silPad),
         shell_quote(LOG_FILE .. ".detect"))
-    local h = io.popen(detectCmd)
-    local out = h:read("*a"); h:close()
+    local out = popen_read(detectCmd)
     local marks = 0
     for line in tostring(out):gmatch("[^\r\n]+") do
         local cs, ce = line:match("^([%-%d%.]+)%s+([%-%d%.]+)$")
@@ -259,7 +294,7 @@ if doSilence then
         PREFIX, shell_quote(audioPath), shell_quote(outMedia), shell_quote(outSrt), shell_quote(wordsPath),
         shell_quote(silThr), shell_quote(silGap), shell_quote(silPad),
         maxChars, maxLines, tostring(maxSecs), shell_quote(LOG_FILE .. ".silence"))
-    local sok = os.execute(silCmd)
+    local sok = run_shell(silCmd)
     local ssuccess = (sok == true) or (type(sok) == "number" and sok == 0)
     local mc = io.open(outMedia)
     if ssuccess and mc then

@@ -4,6 +4,27 @@ Transcribe a timeline's audio with **ElevenLabs Scribe**, turn it into styled
 subtitles, and (optionally) **auto-cut the silence**. One shared engine, two NLE
 front-ends.
 
+## ⚡ Easiest way — the standalone app (Mac + Windows)
+
+No Python, no ffmpeg, no terminal. Grab the installer from the
+[Releases page](../../releases) (built automatically for every tagged version):
+
+| OS | Download | Install |
+|---|---|---|
+| **Windows** | `Audio2SRT-Studio-Setup.exe` | Double-click. SmartScreen may appear once: **More info → Run anyway**. No admin needed. |
+| **macOS** | `Audio2SRT-Studio.dmg` | Open, drag to Applications. First launch: **right-click → Open** (unsigned). |
+
+Then, inside the app:
+1. Paste your **ElevenLabs API key** → Save (stored locally, once).
+2. Either use the app directly (pick file → **Generate SRT** / **Cut Silence**), or
+3. Click **Install Resolve script** / **Install Premiere panel** and restart your
+   editor — subtitles then land straight on your timeline from inside the NLE:
+   - **Resolve:** Workspace → Scripts → `audio_to_srt`
+   - **Premiere:** Window → Extensions → **Audio to SRT**
+
+Everything below this line is the older script-based setup — only needed if you
+don't want the app.
+
 ```
 DaVinci Resolve            Premiere Pro
   audio_to_srt.lua           com.audiotosrt.cep  (CEP panel)

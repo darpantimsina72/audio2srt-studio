@@ -10,6 +10,16 @@ import json
 import os
 import sys
 
+# Windows consoles/redirects default to a legacy codepage (cp1252): printing a
+# Devanagari/emoji filename would crash before the API is even called. Force
+# UTF-8 on the standard streams (no-op on mac/Linux and frozen GUI builds).
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
 # Always resolve relative to this script's own folder — works on any machine
 PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -245,7 +255,9 @@ def generate_srt(audio_path, srt_output, max_chars=10, max_lines=1, max_secs=5.0
     if not cues:
         raise RuntimeError("No subtitle cues generated.")
 
-    with open(srt_output, "w", encoding="utf-8") as f:
+    # utf-8-sig: the BOM makes DaVinci/Premiere on Windows detect UTF-8 instead
+    # of assuming ANSI — without it Devanagari SRTs import as mojibake.
+    with open(srt_output, "w", encoding="utf-8-sig") as f:
         f.write(to_srt(cues))
     return len(cues)
 

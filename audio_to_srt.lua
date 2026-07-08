@@ -34,7 +34,33 @@ local LOG_FILE      = PROJECT_DIR .. SEP .. "logs" .. SEP .. "audio_to_srt.log"
 local DIALOG_LOG    = PROJECT_DIR .. SEP .. "logs" .. SEP .. "audio_to_srt.log.dialog"
 
 local function shell_quote(s)
-    return string.format("%q", tostring(s))
+    s = tostring(s or "")
+    if IS_WINDOWS then
+        -- cmd.exe: backslashes are literal, so plain quotes are enough
+        -- (Lua's %q doubles backslashes, which corrupts UNC/trailing-slash
+        -- paths). Windows filenames cannot contain quotes; strip just in case.
+        return '"' .. s:gsub('"', "") .. '"'
+    end
+    -- POSIX: single quotes disable every metacharacter ($ ` \ etc.).
+    return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+
+-- cmd.exe's /c parser can strip the opening quote of a command line that
+-- starts with a quoted path ("C:\Program Files\...") and then split on the
+-- space. Wrapping the whole line in one extra pair of quotes disables that
+-- (documented in `cmd /?`). io.popen/os.execute both go through cmd /c.
+local function run_shell(cmd)
+    if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+    return os.execute(cmd)
+end
+
+local function popen_read(cmd)
+    if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+    local h = io.popen(cmd)
+    if not h then return "" end
+    local out = h:read("*a") or ""
+    h:close()
+    return out
 end
 
 -- os.tmpname() on Windows returns a name at the drive root (e.g. "\s1a2."),
@@ -113,8 +139,7 @@ local function pydialog(...)
         cmd = cmd .. " " .. shell_quote(a)
     end
     cmd = cmd .. " 2>> " .. shell_quote(DIALOG_LOG)
-    local handle = io.popen(cmd)
-    local result = handle:read("*a"); handle:close()
+    local result = popen_read(cmd)
     return result:match("^%s*(.-)%s*$")
 end
 
@@ -305,7 +330,7 @@ local cmd = string.format(
     shell_quote(LOG_FILE .. ".transcribe")
 )
 log("Running: " .. cmd)
-local ok = os.execute(cmd)
+local ok = run_shell(cmd)
 -- Lua 5.1 returns exit code (number); Lua 5.3+ returns true/nil
 local success = (ok == true) or (type(ok) == "number" and ok == 0)
 
@@ -359,17 +384,24 @@ os.remove(srtPath)
 local items = timeline:GetItemListInTrack("subtitle", 1) or {}
 local count = #items
 
+-- Style. Font: "Noto Serif Devanagari" ships with macOS but not Windows —
+-- there it renders as tofu boxes; "Nirmala UI" is Windows' bundled Devanagari
+-- font. Size/position were tuned on 1080p; scale them to the timeline
+-- resolution or subtitles land off-frame / oversized on 720p and 4K.
+local resH = tonumber(timeline:GetSetting("timelineResolutionHeight")) or 1080
+local styleScale = resH / 1080
+local fontFace = IS_WINDOWS and "Nirmala UI" or "Noto Serif Devanagari"
 for _, item in ipairs(items) do
-    item:SetProperty("fontFace",          "Noto Serif Devanagari")
+    item:SetProperty("fontFace",          fontFace)
     item:SetProperty("bold",              1)
-    item:SetProperty("fontSize",          35)
+    item:SetProperty("fontSize",          math.floor(35 * styleScale + 0.5))
     item:SetProperty("strokeEnabled",     1)
     item:SetProperty("strokeOutsideOnly", 1)
     item:SetProperty("customPosition",    1)
-    item:SetProperty("posY",              620)
+    item:SetProperty("posY",              math.floor(620 * styleScale + 0.5))
     item:SetProperty("shadowEnabled",     1)
-    item:SetProperty("shadowXOffset",     3)
-    item:SetProperty("shadowYOffset",     3)
+    item:SetProperty("shadowXOffset",     math.max(1, math.floor(3 * styleScale + 0.5)))
+    item:SetProperty("shadowYOffset",     math.max(1, math.floor(3 * styleScale + 0.5)))
     item:SetProperty("shadowOpacity",     100)
 end
 
@@ -407,7 +439,7 @@ if doSilence then
         shell_quote(LOG_FILE .. ".silence")
     )
     log("Running silence: " .. silCmd)
-    local sok = os.execute(silCmd)
+    local sok = run_shell(silCmd)
     local ssuccess = (sok == true) or (type(sok) == "number" and sok == 0)
 
     local mediaCheck = io.open(outMedia)

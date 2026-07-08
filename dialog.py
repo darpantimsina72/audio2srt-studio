@@ -120,6 +120,14 @@ def notify(title, message):
 
 
 def main():
+    # The Resolve bridge parses our stdout. On Windows the default stream
+    # encoding is cp1252 — printing a picked track name that contains
+    # Devanagari would crash and look like the user pressed Cancel.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
     try:
         if len(sys.argv) < 2:
             print(__doc__)

@@ -55,9 +55,17 @@ cd "Audio2SRT App"
 pip install -r requirements.txt
 bash build/build_mac.sh         # -> dist/Audio2SRT Studio.app (+ .dmg)
 ```
-The Mac script copies the system `ffmpeg` into `bin/`; for distribution replace it
-with a **static** build (https://evermeet.cx/ffmpeg/) so it runs on other Macs.
+Turnkey like the Windows script: **auto-downloads a static ffmpeg/ffprobe**
+(from ffmpeg.martin-riedl.de) into `bin/` so the bundle runs on Macs without
+Homebrew, and replaces any old Homebrew-linked copies it finds there.
 Unsigned: first launch needs right-click → Open.
+
+### CI builds
+`.github/workflows/build.yml` builds **both** installers on every push to
+`main`, smoke-tests the frozen CLI (bundled ffmpeg, tkinter, silence-cut
+round-trip) on real Windows + macOS runners, and attaches
+`Audio2SRT-Studio-Setup.exe` / `Audio2SRT-Studio.dmg` to a GitHub Release for
+every `v*` tag.
 
 ### Signing (so it opens without scary warnings)
 - **macOS:** unsigned works with right-click → Open. To remove the warning entirely

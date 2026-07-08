@@ -325,6 +325,14 @@ def gui():
 
 
 def main():
+    # Windows streams default to cp1252; error messages that quote a
+    # non-ASCII media path would crash the CLI the bridges depend on.
+    if sys.platform == "win32":
+        for _stream in (sys.stdout, sys.stderr):
+            try:
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+            except (AttributeError, OSError):
+                pass
     args = sys.argv[1:]
     if args:
         sys.exit(cli(args))

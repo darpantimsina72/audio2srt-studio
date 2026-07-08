@@ -61,7 +61,7 @@ def cep_extensions_dir():
 
 
 def _enable_cep_debug():
-    versions = ["8", "9", "10", "11", "12"]
+    versions = ["8", "9", "10", "11", "12", "13", "14"]
     if sys.platform == "win32":
         for v in versions:
             subprocess.run(

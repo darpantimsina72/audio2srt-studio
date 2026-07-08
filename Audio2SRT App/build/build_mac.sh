@@ -19,21 +19,41 @@ else
   }
 fi
 
-echo "[2/4] ffmpeg / ffprobe into bin/ …"
+echo "[2/4] Static ffmpeg / ffprobe into bin/ …"
 mkdir -p bin
-for tool in ffmpeg ffprobe; do
-  if [ ! -f "bin/$tool" ]; then
-    SRC="$(command -v $tool || true)"
-    if [ -n "$SRC" ]; then
-      cp "$SRC" "bin/$tool"; chmod +x "bin/$tool"
-      echo "  copied $tool from $SRC"
-    else
-      echo "  WARNING: $tool not found. Install it (brew install ffmpeg) or drop a STATIC"
-      echo "           build into bin/$tool before shipping. (Homebrew ffmpeg is dynamically"
-      echo "           linked and may not run on machines without those libs.)"
-    fi
+# A Homebrew-copied ffmpeg is dynamically linked against /opt/homebrew dylibs —
+# it dies on any machine without Homebrew. Ship static builds instead
+# (ffmpeg.martin-riedl.de publishes static macOS arm64/amd64 binaries; same
+# role gyan.dev plays for the Windows build). Replace old dylib-linked copies.
+if [ -f bin/ffmpeg ] && otool -L bin/ffmpeg 2>/dev/null | grep -q "/opt/homebrew"; then
+  echo "  bin/ffmpeg is Homebrew-linked (not portable) — replacing with a static build"
+  rm -f bin/ffmpeg bin/ffprobe
+fi
+if [ ! -f bin/ffmpeg ] || [ ! -f bin/ffprobe ]; then
+  ARCH="$(uname -m | sed 's/x86_64/amd64/')"
+  BASE_URL=$(curl -sIL -o /dev/null -w '%{url_effective}' \
+    "https://ffmpeg.martin-riedl.de/redirect/latest/macos/${ARCH}/release/ffmpeg.zip" || true)
+  BASE_URL="${BASE_URL%/ffmpeg.zip}"
+  if [ -n "$BASE_URL" ]; then
+    TMPD="$(mktemp -d)"
+    for tool in ffmpeg ffprobe; do
+      curl -sL "$BASE_URL/$tool.zip" -o "$TMPD/$tool.zip" \
+        && unzip -o -q "$TMPD/$tool.zip" -d "$TMPD" \
+        && mv "$TMPD/$tool" "bin/$tool" && chmod +x "bin/$tool" \
+        && echo "  static $tool downloaded" || echo "  WARNING: $tool download failed"
+    done
+    rm -rf "$TMPD"
   fi
-done
+fi
+if [ -f bin/ffmpeg ] && [ -f bin/ffprobe ]; then
+  # Sanity: portable binaries must run and must not need Homebrew libs.
+  "./bin/ffmpeg" -version >/dev/null 2>&1 || { echo "  ERROR: bin/ffmpeg does not run"; exit 1; }
+  otool -L bin/ffmpeg | grep -q "/opt/homebrew" \
+    && echo "  WARNING: bin/ffmpeg still links Homebrew dylibs — NOT portable" || true
+else
+  echo "  WARNING: no ffmpeg in bin/ — app will fall back to a system ffmpeg if present."
+  echo "           Drop static builds into bin/ before shipping to others."
+fi
 
 echo "[3/4] PyInstaller…"
 "$PY" -m PyInstaller --noconfirm --clean build/audio2srt.spec

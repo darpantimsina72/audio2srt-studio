@@ -9,7 +9,16 @@ where %PY% >nul 2>nul || set "PY=py -3"
 
 echo [1/4] Python deps...
 %PY% -m pip install --quiet --upgrade pyinstaller pywebview elevenlabs
-if errorlevel 1 ( echo   ERROR installing deps & pause & exit /b 1 )
+if errorlevel 1 ( echo   ERROR installing deps & if not defined CI pause & exit /b 1 )
+REM tkinter must be importable or the frozen app ships without it and the
+REM Resolve bridge dialogs die. python.org installers include it by default.
+%PY% -c "import tkinter" >nul 2>nul
+if errorlevel 1 (
+  echo   ERROR: tkinter missing in your Python. Reinstall Python from python.org
+  echo          with the "tcl/tk and IDLE" option checked, then re-run.
+  if not defined CI pause
+  exit /b 1
+)
 
 echo [2/4] Static ffmpeg / ffprobe into bin\ ...
 if not exist bin mkdir bin
@@ -36,7 +45,7 @@ if not exist "bin\ffmpeg.exe" (
 
 echo [3/4] PyInstaller...
 %PY% -m PyInstaller --noconfirm --clean build\audio2srt.spec
-if errorlevel 1 ( echo   ERROR: build failed. If it mentions elevenlabs/pydantic, see README. & pause & exit /b 1 )
+if errorlevel 1 ( echo   ERROR: build failed. If it mentions elevenlabs/pydantic, see README. & if not defined CI pause & exit /b 1 )
 
 echo [4/4] Optional one-click installer (Inno Setup)...
 where iscc >nul 2>nul
@@ -50,4 +59,4 @@ if %errorlevel%==0 (
 echo.
 echo Done. App: dist\Audio2SRT Studio\Audio2SRT Studio.exe
 echo Unsigned: first run shows SmartScreen -> "More info" -> "Run anyway".
-pause
+if not defined CI pause
