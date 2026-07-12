@@ -12,8 +12,19 @@ For 'pick' and 'input', the chosen/entered value is printed to stdout.
 """
 
 import sys
-import tkinter as tk
-from tkinter import ttk
+
+try:
+    import tkinter as tk
+    from tkinter import ttk
+except ImportError as exc:
+    # Without tkinter no dialog can be shown — the caller only sees an empty
+    # reply, so leave an unmissable hint in the dialog log (stderr).
+    print("dialog.py error: tkinter is not available (%s).\n"
+          "Fix: reinstall Python with tcl/tk support.\n"
+          "  Mac:     brew install python-tk\n"
+          "  Windows: re-run the Python installer and keep the "
+          "'tcl/tk and IDLE' option checked." % exc, file=sys.stderr)
+    sys.exit(2)
 
 
 def create_root(title):

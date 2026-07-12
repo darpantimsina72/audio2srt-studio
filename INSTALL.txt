@@ -12,7 +12,8 @@ WHAT YOU NEED BEFORE STARTING
 
   2. Python 3.10 or newer
      https://www.python.org/downloads/
-     (Windows: check "Add Python to PATH" during install)
+     (Windows: setup.bat can install it for you automatically.
+      If you install manually, check "Add Python to PATH".)
 
   3. ElevenLabs account  (free tier works)
      Sign up and get your API key at:
@@ -24,11 +25,17 @@ QUICK SETUP  (recommended)
 
   MAC
   ---
-  1. Put this folder anywhere you like
+  1. If you downloaded a ZIP, double-click it to extract first,
+     then put the extracted folder anywhere you like
      (e.g. Documents, Desktop — doesn't matter)
 
   2. Double-click  setup.command
-     If Mac says "cannot be opened", right-click it → Open → Open
+     If Mac says "cannot be opened", right-click it → Open → Open.
+     On newer macOS there is no Open button: go to
+     System Settings → Privacy & Security, scroll down and click
+     "Open Anyway", then confirm.
+     (Last resort: open Terminal, type  bash  and a space, drag
+      setup.command into the window, press Enter.)
 
   3. Follow the prompts — enter your ElevenLabs API key when asked
 
@@ -37,12 +44,17 @@ QUICK SETUP  (recommended)
 
   WINDOWS
   -------
-  1. Put this folder anywhere you like
+  1. If you downloaded a ZIP: right-click it → "Extract All..." FIRST.
+     Running setup from inside the un-extracted ZIP will not work.
+     Put the extracted folder anywhere you like
      (e.g. C:\Users\YourName\Documents)
 
   2. Double-click  setup.bat
+     If SmartScreen shows "Windows protected your PC", click
+     "More info" → "Run anyway".
 
   3. Follow the prompts — enter your ElevenLabs API key when asked
+     (If Python is missing, setup offers to install it automatically.)
 
   4. Done!
 
@@ -99,10 +111,23 @@ TROUBLESHOOTING
   → On Windows, setup installs to your user script folder first:
       %APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility
 
+  "Python was not found; run without arguments to install from the
+   Microsoft Store..."
+  → You are running an OLD copy of setup.bat. Download the latest
+    version and run its setup.bat — it finds or installs Python
+    correctly and ignores the fake Microsoft Store "python".
+
   "No module named elevenlabs"
   → Run setup again, or manually:
       Mac:     pip3 install -r requirements.txt
       Windows: pip install -r requirements.txt
+
+  No dialog appears when running the script
+  → tkinter is missing from your Python.
+      Mac:     brew install python-tk
+      Windows: re-run the Python installer and keep "tcl/tk and IDLE"
+               checked.
+    Details are logged in  logs/audio_to_srt.log.dialog
 
   "ELEVENLABS_API_KEY not set"
   → Open the .env file in this folder and add:

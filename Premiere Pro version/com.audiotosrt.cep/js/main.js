@@ -59,8 +59,18 @@
 
   // ── Find Python ──────────────────────────────────────────────────────────────
   function findPython() {
+    // setup.bat / setup.command save the exact interpreter they installed
+    // elevenlabs into — always prefer that one. (A bare "python" on Windows
+    // can be the Microsoft Store alias stub, which only prints an install
+    // hint and fails.)
+    try {
+      var saved = fs.readFileSync(path.join(os.homedir(), ".audio_to_srt_python"), "utf8").trim();
+      if (saved && fs.existsSync(saved)) return saved;
+    } catch (e) {}
     var candidates = process.platform === "win32"
       ? [
+          path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python314", "python.exe"),
+          path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python313", "python.exe"),
           path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python312", "python.exe"),
           path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python311", "python.exe"),
           path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python310", "python.exe"),

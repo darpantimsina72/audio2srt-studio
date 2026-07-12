@@ -234,6 +234,23 @@ def generate_srt(audio_path, srt_output, max_chars=10, max_lines=1, max_secs=5.0
     upload_path, is_temp = extract_audio_for_stt(audio_path)
     try:
         raw_words = fetch_words(upload_path, api_key)
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        # Turn raw SDK/network tracebacks into a message the NLE dialog can show.
+        msg = str(exc) or exc.__class__.__name__
+        low = msg.lower()
+        if "401" in msg or "unauthorized" in low or "api key" in low or "invalid_api_key" in low:
+            raise RuntimeError(
+                "ElevenLabs rejected the API key. Check ELEVENLABS_API_KEY in "
+                ".env (get a key at https://elevenlabs.io/app/settings/api-keys).") from exc
+        if ("getaddrinfo" in low or "connection" in low or "connect" in low
+                or "timed out" in low or "timeout" in low or "ssl" in low
+                or "network" in low):
+            raise RuntimeError(
+                "Could not reach ElevenLabs — check your internet connection "
+                "and try again. (" + msg[:200] + ")") from exc
+        raise RuntimeError("ElevenLabs transcription failed: " + msg[:300]) from exc
     finally:
         if is_temp:
             try:

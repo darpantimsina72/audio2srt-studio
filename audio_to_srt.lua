@@ -74,29 +74,50 @@ local function temp_path(suffix)
     return base .. suffix
 end
 
--- Find Python: check common install locations, fall back to bare command on PATH
-local function command_exists(cmd)
+-- Run the candidate interpreter for real: on Windows a "python" found by
+-- `where` can be the Microsoft Store alias stub, which exists on PATH but
+-- only prints an install hint and exits non-zero.
+local function python_works(cmd)
     local check
     if IS_WINDOWS then
-        check = string.format('where %s >nul 2>nul', cmd)
+        check = string.format('%s -c "import sys" >nul 2>nul', cmd)
     else
-        check = string.format('command -v %s >/dev/null 2>/dev/null', cmd)
+        check = string.format('%s -c "import sys" >/dev/null 2>/dev/null', cmd)
     end
     local ok = os.execute(check)
     return (ok == true) or (type(ok) == "number" and ok == 0)
 end
 
 local function find_python()
+    -- setup.bat / setup.command save the interpreter they installed
+    -- elevenlabs into — always prefer that exact one.
+    local home = os.getenv("HOME") or ""
+    local userprofile = os.getenv("USERPROFILE") or home
+    local cfg = IS_WINDOWS
+        and (userprofile .. "\\.audio_to_srt_python")
+        or  (home .. "/.audio_to_srt_python")
+    local cf = io.open(cfg)
+    if cf then
+        local p = (cf:read("*l") or ""):match("^%s*(.-)%s*$")
+        cf:close()
+        if p ~= "" then
+            local pf = io.open(p)
+            if pf then pf:close(); return shell_quote(p) end
+        end
+    end
+
     local localappdata = os.getenv("LOCALAPPDATA") or ""
     local candidates = IS_WINDOWS and {
+        localappdata .. "\\Programs\\Python\\Python314\\python.exe",
+        localappdata .. "\\Programs\\Python\\Python313\\python.exe",
         localappdata .. "\\Programs\\Python\\Python312\\python.exe",
         localappdata .. "\\Programs\\Python\\Python311\\python.exe",
         localappdata .. "\\Programs\\Python\\Python310\\python.exe",
         "C:\\Python312\\python.exe",
         "C:\\Python311\\python.exe",
         "C:\\Python310\\python.exe",
-        "python",
         "py -3",
+        "python",
     } or {
         "/opt/homebrew/bin/python3",   -- Apple Silicon Homebrew
         "/usr/local/bin/python3",      -- Intel Mac Homebrew / manual
@@ -107,11 +128,8 @@ local function find_python()
         if p:find("[\\/]") then
             local f = io.open(p)
             if f then f:close(); return shell_quote(p) end
-        else
-            local base = p:match("^([^%s]+)")
-            if base and command_exists(base) then
-                return p
-            end
+        elseif python_works(p) then
+            return p
         end
     end
     return candidates[#candidates]

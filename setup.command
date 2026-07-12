@@ -14,22 +14,48 @@ echo "   Audio to SRT  —  Setup  (Mac)"
 echo "============================================================"
 echo ""
 
+# Guard: if only setup.command was copied out of the folder, nothing else
+# can work — stop with a clear message instead of failing later.
+if [ ! -f "transcribe.py" ]; then
+    echo "  ERROR: Project files not found next to setup.command."
+    echo "  Keep setup.command inside the Audio2SRT folder and run it from there."
+    read -rp "  Press Enter to exit..." _; exit 1
+fi
+
 # ── 1. Python check ────────────────────────────────────────────
-echo "[ 1 / 5 ]  Checking Python..."
+echo "[ 1 / 6 ]  Checking Python..."
+# /usr/bin/python3 is only a stub until Xcode Command Line Tools are
+# installed — running it pops Apple's install dialog and then fails.
+CLT_OK=0
+xcode-select -p >/dev/null 2>&1 && CLT_OK=1
+
+python_ok() {
+    [ "$1" = "/usr/bin/python3" ] && [ "$CLT_OK" = "0" ] && return 1
+    [ -x "$1" ] && "$1" -c "import sys" >/dev/null 2>&1
+}
+
 PYTHON=""
 for p in /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3; do
-    if [ -x "$p" ]; then PYTHON="$p"; break; fi
+    if python_ok "$p"; then PYTHON="$p"; break; fi
 done
 if [ -z "$PYTHON" ] && command -v python3 &>/dev/null; then
-    PYTHON="$(command -v python3)"
+    p="$(command -v python3)"
+    python_ok "$p" && PYTHON="$p"
 fi
 
 if [ -z "$PYTHON" ]; then
     echo ""
-    echo "  ERROR: Python 3 is not installed."
+    echo "  ERROR: No working Python 3 found."
     echo ""
-    echo "  Install it with Homebrew:  brew install python"
-    echo "  Or download from:          https://www.python.org/downloads/"
+    if [ "$CLT_OK" = "0" ]; then
+        echo "  Easiest fix: install Apple's command line tools (includes Python)."
+        echo "  An install dialog will open now — click Install, wait for it to"
+        echo "  finish, then double-click setup.command again."
+        xcode-select --install >/dev/null 2>&1
+    else
+        echo "  Install it with Homebrew:  brew install python"
+        echo "  Or download from:          https://www.python.org/downloads/"
+    fi
     echo ""
     read -rp "  Press Enter to exit..." _; exit 1
 fi
@@ -37,12 +63,15 @@ echo "  OK — $("$PYTHON" --version)"
 
 # ── 2. elevenlabs ──────────────────────────────────────────────
 echo ""
-echo "[ 2 / 5 ]  Installing elevenlabs..."
+echo "[ 2 / 6 ]  Installing elevenlabs..."
 if "$PYTHON" -c "import elevenlabs" 2>/dev/null; then
     echo "  OK — already installed"
 else
+    # Some installs ship without pip — bootstrap it first.
+    "$PYTHON" -m pip --version >/dev/null 2>&1 || "$PYTHON" -m ensurepip --upgrade >/dev/null 2>&1
     "$PYTHON" -m pip install --break-system-packages elevenlabs 2>/dev/null \
-        || "$PYTHON" -m pip install elevenlabs
+        || "$PYTHON" -m pip install elevenlabs \
+        || "$PYTHON" -m pip install --user elevenlabs
     if "$PYTHON" -c "import elevenlabs" 2>/dev/null; then
         echo "  OK — installed"
     else
@@ -55,7 +84,7 @@ fi
 
 # ── 3. tkinter ─────────────────────────────────────────────────
 echo ""
-echo "[ 3 / 5 ]  Checking tkinter (needed for dialogs)..."
+echo "[ 3 / 6 ]  Checking tkinter (needed for dialogs)..."
 if "$PYTHON" -c "import tkinter" 2>/dev/null; then
     echo "  OK — already installed"
 else
@@ -63,7 +92,15 @@ else
     echo "  Installing python-tk@${PY_VER} via Homebrew..."
     if command -v brew &>/dev/null; then
         brew install --quiet "python-tk@${PY_VER}"
-        echo "  OK"
+        if "$PYTHON" -c "import tkinter" 2>/dev/null; then
+            echo "  OK"
+        else
+            echo ""
+            echo "  WARNING: tkinter is still missing — the dialogs will not appear."
+            echo "  If you installed Python from python.org, run its installer again"
+            echo "  and keep the \"tcl/tk and IDLE\" option checked."
+            read -rp "  Press Enter to continue anyway..." _
+        fi
     else
         echo ""
         echo "  WARNING: Homebrew not found. Install it from https://brew.sh"
@@ -73,15 +110,38 @@ else
     fi
 fi
 
-# ── 4. Write config so the Lua script knows where files live ───
+# ── 4. ffmpeg (optional — needed only for the Silence Cut feature) ─
 echo ""
-echo "[ 4 / 5 ]  Saving project path..."
-echo "$PROJ" > "$HOME/.audio_to_srt_path"
-echo "  OK — path saved to ~/.audio_to_srt_path"
+echo "[ 4 / 6 ]  Checking ffmpeg (optional, used by Silence Cut)..."
+if command -v ffmpeg &>/dev/null || [ -x /opt/homebrew/bin/ffmpeg ] || [ -x /usr/local/bin/ffmpeg ]; then
+    echo "  OK — ffmpeg found"
+elif command -v brew &>/dev/null; then
+    read -rp "  ffmpeg not found. Install it with Homebrew now? [Y/n] " FFANS
+    if [ "$FFANS" = "n" ] || [ "$FFANS" = "N" ]; then
+        echo "  Skipped. Subtitles still work; Silence Cut will not."
+    else
+        echo "  Installing ffmpeg (takes a few minutes)..."
+        brew install --quiet ffmpeg && echo "  OK" \
+            || echo "  WARNING: brew install ffmpeg failed. Silence Cut will not work."
+    fi
+else
+    echo "  NOTE: ffmpeg not found. Subtitles still work; Silence Cut will not."
+    echo "        Install Homebrew (https://brew.sh) then run:  brew install ffmpeg"
+fi
 
-# ── 5. Install Lua script into Resolve ─────────────────────────
+# ── 5. Write config so the Lua script knows where files live ───
 echo ""
-echo "[ 5 / 5 ]  Installing audio_to_srt.lua into DaVinci Resolve..."
+echo "[ 5 / 6 ]  Saving project path..."
+echo "$PROJ" > "$HOME/.audio_to_srt_path"
+# Save the exact interpreter we just set up, so the Resolve script
+# uses the same Python that has elevenlabs installed.
+"$PYTHON" -c "import sys; print(sys.executable)" > "$HOME/.audio_to_srt_python" 2>/dev/null \
+    || echo "$PYTHON" > "$HOME/.audio_to_srt_python"
+echo "  OK — paths saved to ~/.audio_to_srt_path"
+
+# ── 6. Install Lua script into Resolve ─────────────────────────
+echo ""
+echo "[ 6 / 6 ]  Installing audio_to_srt.lua into DaVinci Resolve..."
 USER_RESOLVE_SCRIPTS="$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility"
 SYSTEM_RESOLVE_SCRIPTS="/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility"
 

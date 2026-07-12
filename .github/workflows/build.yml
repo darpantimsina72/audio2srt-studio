@@ -112,6 +112,51 @@ jobs:
           path: Audio2SRT App/dist/Audio2SRT-Studio-Setup.exe
           if-no-files-found: error
 
+  setup-scripts:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Extract the :try_python helper verbatim from the shipped setup.bat so
+      # this test can never drift from the code users actually run.
+      - name: Build detection harness from setup.bat
+        shell: pwsh
+        run: |
+          $lines = Get-Content setup.bat
+          $i = ($lines | Select-String -Pattern '^:try_python').LineNumber - 1
+          $j = $i; while ($lines[$j] -notmatch 'goto :eof') { $j++ }
+          $helper = $lines[$i..$j] -join "`r`n"
+          $harness = "@echo off`r`n" +
+            "set `"PYTHON_EXE=`"`r`n" +
+            "call :try_python %1 %2`r`n" +
+            "if defined PYTHON_EXE (echo FOUND=%PYTHON_EXE%) else (echo NOTFOUND)`r`n" +
+            "exit /b 0`r`n" + $helper + "`r`n"
+          Set-Content -Path "$env:TEMP\harness.bat" -Value $harness -Encoding ascii
+          Get-Content "$env:TEMP\harness.bat"
+
+      - name: Detection finds a real interpreter
+        shell: cmd
+        run: |
+          call "%TEMP%\harness.bat" python | findstr /b "FOUND=" || ( echo real python not detected & exit /b 1 )
+          echo OK real python detected
+
+      - name: Detection rejects a Store-alias-style stub
+        shell: cmd
+        run: |
+          rem A python.exe that exists on PATH but is not a working interpreter
+          rem (this is exactly what the Microsoft Store alias stub looks like
+          rem to "where python").
+          mkdir "%TEMP%\stub"
+          > "%TEMP%\stub\python.exe" echo not a real interpreter
+          set "PATH=%TEMP%\stub;%SystemRoot%\System32"
+          where python
+          call "%TEMP%\harness.bat" python | findstr /b "NOTFOUND" || ( echo stub was wrongly accepted & exit /b 1 )
+          echo OK stub rejected
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [mac, windows]

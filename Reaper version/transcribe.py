@@ -9,6 +9,17 @@ Usage:
 import os
 import sys
 
+# Windows consoles/redirects default to a legacy codepage (cp1252): printing a
+# Devanagari/emoji filename would crash before the API is even called. Force
+# UTF-8 on the standard streams (no-op on mac/Linux).
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace",
+                                line_buffering=True)
+        except (AttributeError, OSError):
+            pass
+
 PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -194,13 +205,27 @@ def main():
     mime = _MIME.get(ext, "application/octet-stream")
 
     print("Transcribing: " + os.path.basename(audio_path))
-    with open(audio_path, "rb") as fh:
-        result = client.speech_to_text.convert(
-            file=(os.path.basename(audio_path), fh, mime),
-            model_id="scribe_v2",
-            timestamps_granularity="word",
-            tag_audio_events=False,
-        )
+    try:
+        with open(audio_path, "rb") as fh:
+            result = client.speech_to_text.convert(
+                file=(os.path.basename(audio_path), fh, mime),
+                model_id="scribe_v2",
+                timestamps_granularity="word",
+                tag_audio_events=False,
+            )
+    except Exception as exc:
+        # Turn raw SDK/network tracebacks into a message the dialog can show.
+        msg = str(exc) or exc.__class__.__name__
+        low = msg.lower()
+        if "401" in msg or "unauthorized" in low or "api key" in low or "invalid_api_key" in low:
+            print("ERROR: ElevenLabs rejected the API key. Check ELEVENLABS_API_KEY in .env")
+        elif ("getaddrinfo" in low or "connection" in low or "connect" in low
+                or "timed out" in low or "timeout" in low or "ssl" in low
+                or "network" in low):
+            print("ERROR: Could not reach ElevenLabs -- check your internet connection. (" + msg[:200] + ")")
+        else:
+            print("ERROR: ElevenLabs transcription failed: " + msg[:300])
+        sys.exit(1)
 
     if not result or not getattr(result, "words", None):
         print("ERROR: ElevenLabs returned no word data.")
@@ -216,7 +241,9 @@ def main():
         print("ERROR: No subtitle cues generated.")
         sys.exit(1)
 
-    with open(srt_output, "w", encoding="utf-8") as f:
+    # utf-8-sig: the BOM makes Windows NLEs detect UTF-8 instead of assuming
+    # ANSI — without it Devanagari SRTs import as mojibake.
+    with open(srt_output, "w", encoding="utf-8-sig") as f:
         f.write(to_srt(cues))
 
     print(f"OK: {len(cues)} cues written to {srt_output}")
