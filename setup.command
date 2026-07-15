@@ -16,11 +16,14 @@ echo ""
 
 # Guard: if only setup.command was copied out of the folder, nothing else
 # can work — stop with a clear message instead of failing later.
-if [ ! -f "transcribe.py" ]; then
-    echo "  ERROR: Project files not found next to setup.command."
-    echo "  Keep setup.command inside the Audio2SRT folder and run it from there."
-    read -rp "  Press Enter to exit..." _; exit 1
-fi
+for f in transcribe.py loader.pyw dialog.py silence.py caption-bin.drb; do
+    if [ ! -f "$f" ]; then
+        echo "  ERROR: $f not found next to setup.command."
+        echo "  Keep setup.command inside the complete Audio2SRT folder"
+        echo "  (with loader.pyw, caption-bin.drb, etc.) and run it from there."
+        read -rp "  Press Enter to exit..." _; exit 1
+    fi
+done
 
 # ── 1. Python check ────────────────────────────────────────────
 echo "[ 1 / 6 ]  Checking Python..."

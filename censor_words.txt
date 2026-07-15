@@ -1,0 +1,8 @@
+# Audio2SRT censor list — one word per line, any script (Hindi/Bengali/English).
+# Lines starting with # are ignored. Matching is case-insensitive and ignores
+# surrounding punctuation. Censored words appear masked in subtitles:
+#   word -> w**d   (words of 3 or fewer characters become all stars)
+# Enable the "Censor words" toggle in the Audio2SRT dialog to activate this list.
+#
+# Example (remove the leading # to activate):
+# damn

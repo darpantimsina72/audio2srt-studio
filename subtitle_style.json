@@ -1,7 +1,8 @@
 {
-  "fontFace":          "Noto Serif Devanagari",
+  "fontFace":          "Noto Serif Bengali",
+  "fontFaceDevanagari": "",
   "bold":              1,
-  "fontSize":          35,
+  "fontSize":          55,
   "strokeEnabled":     1,
   "strokeColor":       {"r": 0, "g": 0, "b": 0, "a": 1},
   "strokeOutsideOnly": 1,

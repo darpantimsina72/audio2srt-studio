@@ -4,6 +4,34 @@ Transcribe a timeline's audio with **ElevenLabs Scribe**, turn it into styled
 subtitles, and (optionally) **auto-cut the silence**. One shared engine, two NLE
 front-ends.
 
+## What the Resolve version can do (merged from SRT Sync Pro)
+
+The DaVinci flow now opens a full **Audio2SRT window** (`loader.pyw`) instead of
+small dialogs:
+
+- **Languages** — 11 Indian languages; Hindi guarantees 100% Devanagari output
+  (a built-in transliteration safety net catches stray Latin words).
+- **Speaker detection** — ElevenLabs diarization; each speaker gets a colour
+  from `speaker_colors.json`.
+- **Caption styles** — classic **SRT (colored)**, **Plain Text**, or ten
+  **animated Fusion Text+ styles** (Karaoke Highlight, Fade, Pop In, Slide Up,
+  …) built from the `caption-bin.drb` template.
+- **Smart cue building** — pause-aware splits, reading-speed (CPS) cap,
+  minimum on-screen time, max words per caption, Hindi glue-word handling so
+  auxiliaries never strand alone.
+- **Censor words** — mask words listed in `censor_words.txt` (w**d).
+- **Keyword highlight** — colour chosen words inside animated captions.
+- **Presets & reel styles** — save/load full setting bundles; one-click looks.
+- **Review pass** — edit captions in a list before they land on the timeline.
+- **Update / Undo** — restyle existing animated captions without
+  re-transcribing; remove the last generated caption track.
+- **Silence cut** — same tightened-copy flow as before, now a toggle in the
+  window.
+- **Multi-clip / retake aware** — every clip on the chosen track is mapped and
+  transcribed (even from different source files), and cues are clamped to each
+  clip's timeline window.
+- **Retries** — transient ElevenLabs/network errors are retried with backoff.
+
 ## ⚡ Easiest way — the standalone app (Mac + Windows)
 
 No Python, no ffmpeg, no terminal. Grab the installer from the

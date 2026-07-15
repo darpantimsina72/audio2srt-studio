@@ -65,42 +65,66 @@ HOW TO USE
   2. Open a project and go to the Edit page
   3. Make sure your timeline has an audio clip on it
   4. Click the menu:  Workspace  →  Scripts  →  audio_to_srt
-  5. A dialog will appear — select the audio track to transcribe
-  6. Adjust subtitle settings if needed (or leave the defaults)
-  7. (optional) Auto-cut silence — see below; leave blank to skip
-  8. Wait while ElevenLabs transcribes the audio (internet required)
-  9. Subtitles are automatically added to the timeline
+  5. The Audio2SRT window appears. Pick the audio track, language and
+     caption style, tweak anything else you like, then click
+     "Generate SRT".
+  6. Wait while ElevenLabs transcribes the audio (internet required)
+  7. (optional) Review/edit the captions when the review list appears
+  8. Captions are automatically added to the timeline
+
+
+THE MAIN WINDOW — WHAT'S THERE
+------------------------------
+  Subtitle settings   max chars / lines / seconds, minimum on-screen
+                      time, reading-speed cap (CPS) and text size
+  Language            11 Indian languages. Hindi guarantees Devanagari
+                      output — even spoken English words
+  Caption style       "SRT (colored)" = classic subtitle track with
+                      per-speaker colours. "Plain Text" = unstyled.
+                      Everything else = animated Fusion Text+ captions
+                      (Karaoke, Fade, Pop In, Slide Up, ...)
+  Options             Punctuation, Speaker detection (diarization),
+                      Censor words (uses censor_words.txt)
+  Presets             save/load all your settings under a name
+  Font                any installed font + weight
+  Reel styles         one-click looks for vertical reels
+  Advanced            max words per caption, keyword highlight colour,
+                      review-before-applying
+  Silence cut         renders a "silence removed" copy of the clip +
+                      matching SRT into the Media Pool (needs ffmpeg,
+                      see below). The timeline itself is never touched.
+  Preview panel       live animated preview + position/size/colour
+                      controls for the animated styles
+
+  Update Captions     restyles the animated captions already on the
+                      timeline (no re-transcription, free)
+  Undo Last Captions  removes the caption track the last run created
 
 
 AUTO-CUT SILENCE  (optional)
 ----------------------------
-  After the subtitle settings, a second box asks:
-      "Auto-cut silence too?   thresholdDB,minGap,pad"
-  Leave it BLANK to skip (subtitles work exactly as before).
+  Turn on "Cut silence (tightened copy)" in the Silence Cut section.
 
-  Fill it in (e.g.  -30,0.5,0.05 ) and the script will ALSO render a
-  copy of the clip with the silent gaps removed, plus a matching SRT,
-  and import both into your Media Pool. Your timeline is NOT changed —
-  drop the tightened clip onto a fresh track to use it.
+      Threshold dB  how quiet counts as silence (-30 default)
+      Min gap       ignore gaps shorter than this, seconds (0.5 default)
+      Pad           breath left around speech, seconds (0.05 default)
 
-      thresholdDB  how quiet counts as silence (-30 default)
-      minGap       ignore gaps shorter than this, seconds (0.5 default)
-      pad          breath left around speech, seconds (0.05 default)
+  The script renders a copy of the clip with the silent gaps removed,
+  plus a matching SRT, and imports both into your Media Pool. Your
+  timeline is NOT changed — drop the tightened clip onto a fresh track.
 
   Requires ffmpeg (Mac: brew install ffmpeg). Subtitles work without it.
 
 
 SUBTITLE SETTINGS EXPLAINED
 ----------------------------
-  When the settings dialog appears, you'll see:  10,1,5
-
-  These three numbers mean:
-    10  →  max characters per line
+  The three classic numbers (Max chars / Max lines / Max sec) mean:
+    25  →  max characters per line
      1  →  max lines on screen at once
-     5  →  max seconds per subtitle cue
+     2  →  max seconds per subtitle cue
 
   Examples:
-    10,1,5   →  short single-line captions (default — Nepali/Hindi style)
+    25,1,2   →  short single-line captions (default — Hindi reel style)
     42,2,7   →  two-line captions, longer phrases (English style)
 
 
@@ -151,9 +175,16 @@ TROUBLESHOOTING
 FILES IN THIS FOLDER
 --------------------
   audio_to_srt.lua   Resolve menu script  (auto-installed by setup)
+  loader.pyw         The main Audio2SRT window (form + progress + review)
   transcribe.py      Handles ElevenLabs transcription
-  dialog.py          Handles on-screen dialogs
-  subtitle_style.json  Font and style settings for subtitles
+  silence.py         Silence detection / tightened-copy rendering
+  dialog.py          Small on-screen dialogs
+  subtitle_style.json  Font and style settings for SRT subtitles
+  speaker_colors.json  Colour palette for speaker detection
+  censor_words.txt   Words to mask when "Censor words" is on
+  caption-bin.drb    Resolve bin with the animated caption template
+  autosubs-macro.setting  The Fusion Text+ caption macro
+  presets/           Your saved setting presets (created on first save)
   .env               Your API key  (never share this file)
   requirements.txt   Python packages list
   setup.command      Mac installer

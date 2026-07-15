@@ -13,14 +13,16 @@ echo.
 
 :: Double-clicking the .bat while it is still INSIDE the ZIP extracts only
 :: this one file to a temp folder — every other project file is missing.
-if not exist "transcribe.py" (
-    echo   ERROR: Project files not found next to setup.bat.
-    echo.
-    echo   If you downloaded a ZIP, right-click it and choose "Extract All..."
-    echo   first, then open the extracted folder and run setup.bat from there.
-    echo.
-    pause
-    exit /b 1
+for %%f in (transcribe.py loader.pyw dialog.py silence.py caption-bin.drb) do (
+    if not exist "%%f" (
+        echo   ERROR: %%f not found next to setup.bat.
+        echo.
+        echo   If you downloaded a ZIP, right-click it and choose "Extract All..."
+        echo   first, then open the extracted folder and run setup.bat from there.
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 :: ── 1. Python check ───────────────────────────────────────────
