@@ -29,7 +29,7 @@ from engine import transcribe as t_engine   # noqa: E402
 from engine import silence as s_engine       # noqa: E402
 
 APP_NAME = "Audio2SRT Studio"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 # Where the in-app updater looks for new releases (the CI publishes here on
 # every `v*` tag). owner/name only — the API + page URLs are derived below.
