@@ -73,6 +73,14 @@ else
         || { echo "  ERROR: could not install elevenlabs. Try: pip3 install elevenlabs";
              read -rp "  Press Enter to exit..." _; exit 1; }
 fi
+# Best-effort extra: truststore lets Python use the Mac's own keychain
+# certificates, so a company proxy / antivirus that inspects HTTPS doesn't
+# break transcription. The tools still work without it.
+"$PYTHON" -c "import truststore" 2>/dev/null \
+    || "$PYTHON" -m pip install --break-system-packages truststore 2>/dev/null \
+    || "$PYTHON" -m pip install truststore 2>/dev/null \
+    || "$PYTHON" -m pip install --user truststore 2>/dev/null \
+    || true
 
 # ── 3. ffmpeg (needed for silence cutting) ─────────────────────
 echo ""

@@ -157,6 +157,19 @@ TROUBLESHOOTING
   → Open the .env file in this folder and add:
       ELEVENLABS_API_KEY=your_key_here
 
+  "Secure connection to ElevenLabs was blocked" /
+  "CERTIFICATE_VERIFY_FAILED ... self-signed certificate"
+  → A company network, VPN or antivirus is inspecting HTTPS traffic.
+    The tools trust your computer's own certificate store (via the
+    truststore package — setup installs it), so usually this fixes
+    itself after re-running setup. If it still fails:
+      1. Try another network (e.g. a phone hotspot) to confirm the
+         network is the cause.
+      2. Ask IT to install their root certificate on this computer.
+      3. Advanced: set AUDIO2SRT_CA_BUNDLE to the proxy's root-CA
+         .pem file, or AUDIO2SRT_NO_SSL_VERIFY=1 to skip certificate
+         checks (last resort — unsafe on public networks).
+
   "No active timeline" error
   → Make sure you're on the Edit page and a timeline is open
 

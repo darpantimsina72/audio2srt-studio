@@ -4,7 +4,7 @@
 ; Output: dist\Audio2SRT-Studio-Setup.exe  (a single double-click installer)
 
 #define AppName "Audio2SRT Studio"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.3"
 #define AppExe "Audio2SRT Studio.exe"
 
 [Setup]

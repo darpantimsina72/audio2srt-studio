@@ -1,3 +1,4 @@
 elevenlabs
+truststore
 pywebview
 pyinstaller

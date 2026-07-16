@@ -25,6 +25,7 @@ hiddenimports = [
     "engine", "engine.transcribe", "engine.silence",
     "transcribe", "silence", "dialog", "installers",
     "webview", "elevenlabs",
+    "truststore",               # OS certificate store (corporate proxy/antivirus TLS)
     "tkinter", "tkinter.ttk",   # dialog.py — Resolve bridge track picker / alerts
 ]
 
@@ -76,6 +77,6 @@ if sys.platform == "darwin":
         info_plist={
             "NSHighResolutionCapable": True,
             "LSApplicationCategoryType": "public.app-category.video",
-            "CFBundleShortVersionString": "1.0.0",
+            "CFBundleShortVersionString": "1.0.3",
         },
     )

@@ -269,7 +269,7 @@ def run_silence(media, out, srt_out=None, words_path=None, words=None,
 
     segs = keep_segments(cuts, duration)
     if not segs:
-        raise RuntimeError("every segment was classified as silence — loosen "
+        raise RuntimeError("every segment was classified as silence - loosen "
                            "--threshold or raise --min-silence.")
 
     removed = sum(ce - cs for cs, ce in cuts)

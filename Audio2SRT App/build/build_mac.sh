@@ -6,12 +6,12 @@ APP="$(pwd)"
 echo "== Audio2SRT Studio — macOS build =="
 
 PY="${PYTHON:-python3}"
-echo "[1/4] Python deps (pyinstaller, pywebview, elevenlabs)…"
-if "$PY" -c "import PyInstaller, webview, elevenlabs, tkinter" 2>/dev/null; then
+echo "[1/4] Python deps (pyinstaller, pywebview, elevenlabs, truststore)…"
+if "$PY" -c "import PyInstaller, webview, elevenlabs, truststore, tkinter" 2>/dev/null; then
   echo "  deps already present — skipping pip"
 else
-  "$PY" -m pip install --quiet --upgrade pyinstaller pywebview elevenlabs pyobjc-framework-WebKit 2>/dev/null \
-    || "$PY" -m pip install --break-system-packages --quiet --upgrade pyinstaller pywebview elevenlabs pyobjc-framework-WebKit
+  "$PY" -m pip install --quiet --upgrade pyinstaller pywebview elevenlabs truststore pyobjc-framework-WebKit 2>/dev/null \
+    || "$PY" -m pip install --break-system-packages --quiet --upgrade pyinstaller pywebview elevenlabs truststore pyobjc-framework-WebKit
   "$PY" -c "import tkinter" 2>/dev/null || {
     echo "  ERROR: tkinter missing in $PY — the Resolve dialogs need it in the bundle."
     echo "         brew install python-tk@3.13   (match your Python version), then re-run."

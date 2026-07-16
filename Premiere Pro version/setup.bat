@@ -103,6 +103,11 @@ if %errorlevel%==0 (
         pause & exit /b 1
     )
 )
+REM Best-effort extra: truststore lets Python use Windows' certificate store,
+REM so a company proxy / antivirus that inspects HTTPS doesn't break
+REM transcription. The tools still work without it.
+"%PYTHON_EXE%" -c "import truststore" >nul 2>nul
+if errorlevel 1 "%PYTHON_EXE%" -m pip install --quiet --disable-pip-version-check truststore >nul 2>nul
 
 REM -- 3. ffmpeg -------------------------------------------------
 echo.

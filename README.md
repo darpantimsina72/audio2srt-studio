@@ -50,6 +50,13 @@ Then, inside the app:
    - **Resolve:** Workspace → Scripts → `audio_to_srt`
    - **Premiere:** Window → Extensions → **Audio to SRT**
 
+> **On a company network / VPN and transcription fails with an SSL
+> certificate error?** The app trusts your computer's own certificate store,
+> so IT-managed machines work once the proxy's root certificate is installed
+> (ask IT, or test on a phone hotspot). Advanced overrides:
+> `AUDIO2SRT_CA_BUNDLE=<root-ca.pem>`, or `AUDIO2SRT_NO_SSL_VERIFY=1`
+> as a last resort (skips certificate checks — unsafe on public networks).
+
 ### Updating
 The app checks GitHub on launch. When a newer version exists, a bar appears at
 the top — click **Get update** to open the download page, grab the new

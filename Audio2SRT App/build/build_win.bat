@@ -8,7 +8,7 @@ set "PY=python"
 where %PY% >nul 2>nul || set "PY=py -3"
 
 echo [1/4] Python deps...
-%PY% -m pip install --quiet --upgrade pyinstaller pywebview elevenlabs
+%PY% -m pip install --quiet --upgrade pyinstaller pywebview elevenlabs truststore
 if errorlevel 1 ( echo   ERROR installing deps & if not defined CI pause & exit /b 1 )
 REM tkinter must be importable or the frozen app ships without it and the
 REM Resolve bridge dialogs die. python.org installers include it by default.

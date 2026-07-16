@@ -42,6 +42,56 @@ if sys.platform == "win32":
 # Always resolve relative to this script's own folder — works on any machine
 PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def _install_ssl_trust():
+    """Make HTTPS verification use certificates the machine actually trusts.
+
+    Python ships its own CA list (certifi) and ignores the operating system's
+    certificate store. Corporate networks, VPNs and some antivirus products
+    re-sign TLS traffic with their own root certificate; that root lives in
+    the *OS* store, so the browser works but our API calls die with
+    "[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate". truststore
+    (Python 3.10+) points Python's ssl at the OS store on Windows/macOS/Linux,
+    fixing that whole class of failure.
+
+    Overrides, checked first:
+      AUDIO2SRT_CA_BUNDLE=<file.pem>  verify against a specific CA bundle
+                                      (for proxies whose root isn't installed
+                                      machine-wide).
+    Returns a short tag naming the active trust source (for logs/tests).
+    """
+    bundle = os.environ.get("AUDIO2SRT_CA_BUNDLE", "").strip()
+    if bundle and os.path.isfile(bundle):
+        # httpx (the ElevenLabs SDK), requests and urllib all honor these.
+        os.environ["SSL_CERT_FILE"] = bundle
+        os.environ["REQUESTS_CA_BUNDLE"] = bundle
+        return "ca-bundle"
+    try:
+        import truststore
+        truststore.inject_into_ssl()
+        return "os-truststore"
+    except Exception:
+        pass
+    # Fallback: at least make sure certifi's CAs are found (frozen builds can
+    # lose the default path).
+    try:
+        import certifi
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    except Exception:
+        pass
+    return "certifi"
+
+
+_SSL_TRUST = _install_ssl_trust()
+
+
+def _insecure_ssl_requested():
+    """AUDIO2SRT_NO_SSL_VERIFY=1 disables certificate checks entirely — a
+    last-resort escape hatch for networks whose proxy certificate cannot be
+    installed. Off by default; we warn loudly when it's used."""
+    return (os.environ.get("AUDIO2SRT_NO_SSL_VERIFY", "").strip().lower()
+            in ("1", "true", "yes"))
+
 # Language pinned on the ElevenLabs Scribe API when the user picks Hindi so the
 # transcript is Devanagari — code-switched English words included. Overridable
 # via the ELEVENLABS_LANGUAGE env var (ISO 639-1 "hi" or 639-3 "hin").
@@ -896,10 +946,23 @@ def _classify_api_error(exc):
         return ("ElevenLabs rate limit hit: " + msg[:200], True)
     if any(code in msg for code in ("500", "502", "503", "504")):
         return ("ElevenLabs server error: " + msg[:200], True)
+    if ("certificate_verify_failed" in low or "certificate verify failed" in low
+            or "certificate required" in low or "self-signed" in low
+            or "self signed" in low or "sslcertverification" in low):
+        # Retrying cannot fix a certificate mismatch, so mark non-transient.
+        return ("Secure connection to ElevenLabs was blocked (SSL certificate "
+                "check failed). This usually means a company network, VPN or "
+                "antivirus is inspecting HTTPS traffic. Try: 1) another "
+                "network, e.g. a phone hotspot, to confirm; 2) ask IT to "
+                "install their root certificate on this computer (the app "
+                "trusts the system certificate store); 3) advanced: set "
+                "AUDIO2SRT_CA_BUNDLE to your proxy's root-CA .pem file, or "
+                "AUDIO2SRT_NO_SSL_VERIFY=1 to skip the check (unsafe on "
+                "public networks). Details: " + msg[:160], False)
     if ("getaddrinfo" in low or "connection" in low or "connect" in low
             or "timed out" in low or "timeout" in low or "ssl" in low
             or "network" in low):
-        return ("Could not reach ElevenLabs — check your internet connection "
+        return ("Could not reach ElevenLabs - check your internet connection "
                 "and try again. (" + msg[:200] + ")", True)
     return ("ElevenLabs transcription failed: " + msg[:300], False)
 
@@ -912,7 +975,14 @@ def fetch_words(audio_path, api_key, language=None, diarize=False,
     teammate's original pipeline had no retry and one hiccup failed the whole
     run. Raises RuntimeError with a human-readable message on failure."""
     from elevenlabs import ElevenLabs
-    client = ElevenLabs(api_key=api_key)
+    client_kwargs = {"api_key": api_key}
+    if _insecure_ssl_requested():
+        import httpx
+        print("WARN: AUDIO2SRT_NO_SSL_VERIFY=1 - SSL certificate checks are "
+              "OFF for this run. Only use this on a network you trust.")
+        client_kwargs["httpx_client"] = httpx.Client(
+            verify=False, timeout=httpx.Timeout(300.0, connect=30.0))
+    client = ElevenLabs(**client_kwargs)
     ext = os.path.splitext(audio_path)[1].lower()
     mime = _MIME.get(ext, "application/octet-stream")
 
@@ -946,7 +1016,7 @@ def fetch_words(audio_path, api_key, language=None, diarize=False,
             if not transient or attempt == attempts:
                 raise last_err
             wait = 2 * attempt
-            print("WARN: %s — retrying in %ds (%d/%d)"
+            print("WARN: %s - retrying in %ds (%d/%d)"
                   % (human, wait, attempt, attempts - 1))
             _progress(40, "Retrying transcription (%d/%d)..." % (attempt, attempts - 1))
             time.sleep(wait)
