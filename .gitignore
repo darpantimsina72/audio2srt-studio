@@ -35,3 +35,7 @@ for others/
 .DS_Store
 **/.DS_Store
 Thumbs.db
+
+# ── Feedback system — token + offline outbox stay local ──────────────────
+github_token.txt
+feedback_outbox/

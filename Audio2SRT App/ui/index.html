@@ -15,8 +15,9 @@
     .pill.ok { background: #1d3a24; color: #8ce99a; }
     .pill.no { background: #3a1d1d; color: #ff8a80; }
     label { display: block; margin: 12px 0 4px; color: #c4c7cd; font-size: 12px; }
-    input, select { width: 100%; background: #2a2c30; color: #e8e8e8; border: 1px solid #3a3d44;
+    input, select, textarea { width: 100%; background: #2a2c30; color: #e8e8e8; border: 1px solid #3a3d44;
       border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+    textarea { resize: vertical; font-family: inherit; }
     .row { display: flex; gap: 8px; } .row > div { flex: 1; }
     .filerow { display: flex; gap: 8px; } .filerow input { flex: 1; }
     fieldset { border: 1px solid #34373d; border-radius: 8px; margin: 16px 0 0; padding: 6px 14px 14px; }
@@ -101,6 +102,31 @@
       </div>
     </fieldset>
 
+    <fieldset>
+      <legend>Feedback</legend>
+      <div class="row">
+        <div>
+          <label for="fbkind">Type</label>
+          <select id="fbkind">
+            <option>Feedback</option>
+            <option>Improvement</option>
+            <option>Bug</option>
+          </select>
+        </div>
+        <div>
+          <label for="fbname">Your name (optional)</label>
+          <input id="fbname" placeholder="" />
+        </div>
+      </div>
+      <label for="fbmsg">Message</label>
+      <textarea id="fbmsg" rows="3" placeholder="What works, what doesn't, what would help…"></textarea>
+      <p class="hint" id="fbshots">No screenshots attached.</p>
+      <div class="actions" style="margin-top:8px;">
+        <button class="sec mini" id="fbattach">📎 Attach screenshot(s)</button>
+        <button class="mini" id="fbsend">💬 Send feedback</button>
+      </div>
+    </fieldset>
+
     <div id="status">Loading…</div>
   </div>
 
@@ -166,6 +192,35 @@
       $("inspre").onclick = function () {
         busy(true); setStatus("Installing Premiere panel…");
         api().install_premiere().then(function (r) { setStatus(r.ok ? "✓ " + r.next : "✗ " + r.error, r.ok ? "ok" : "err"); }).then(function () { busy(false); });
+      };
+
+      var fbFiles = [];
+      function fbShotsLabel() {
+        $("fbshots").textContent = fbFiles.length
+          ? "Attached: " + fbFiles.map(function (p) { return p.split(/[\\/]/).pop(); }).join(", ")
+          : "No screenshots attached.";
+      }
+      $("fbattach").onclick = function () {
+        api().pick_feedback_shots().then(function (ps) {
+          (ps || []).forEach(function (p) { if (fbFiles.indexOf(p) < 0) fbFiles.push(p); });
+          fbShotsLabel();
+        });
+      };
+      $("fbsend").onclick = function () {
+        var msg = $("fbmsg").value.trim();
+        if (!msg) { setStatus("Write a feedback message first.", "err"); return; }
+        $("fbsend").disabled = true; setStatus("Sending feedback…");
+        api().send_feedback($("fbkind").value, $("fbname").value.trim(), msg, fbFiles)
+          .then(function (r) {
+            if (r.ok) {
+              $("fbmsg").value = ""; fbFiles = []; fbShotsLabel();
+              setStatus("✓ Feedback sent — thank you!", "ok");
+            } else {
+              setStatus("✗ Could not send feedback: " + r.error
+                + (r.saved ? "\nSaved to " + r.saved + " — send that folder to the developer." : ""), "err");
+            }
+          })
+          .then(function () { $("fbsend").disabled = false; });
       };
     });
 

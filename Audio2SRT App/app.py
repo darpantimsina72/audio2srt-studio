@@ -27,9 +27,10 @@ if os.path.isdir(_BIN):
 
 from engine import transcribe as t_engine   # noqa: E402
 from engine import silence as s_engine       # noqa: E402
+import app_feedback                          # noqa: E402  (stdlib-only, bundled)
 
 APP_NAME = "Audio2SRT Studio"
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.1.0"
 
 # Where the in-app updater looks for new releases (the CI publishes here on
 # every `v*` tag). owner/name only — the API + page URLs are derived below.
@@ -216,7 +217,7 @@ def _kv(args):
 def cli(argv):
     if not argv:
         print("commands: transcribe | silence | detect | set-key | where | "
-              "update | install-resolve | install-premiere")
+              "update | install-resolve | install-premiere | feedback")
         return 1
 
     cmd, rest = argv[0], argv[1:]
@@ -319,6 +320,11 @@ def cli(argv):
             print(json.dumps(update_status()))
             return 0
 
+        if cmd == "feedback":
+            # Same sender the GUI uses; handy for the NLE bridges / scripting.
+            return app_feedback.main(
+                ["--app", APP_NAME, "--app-version", APP_VERSION] + rest)
+
     except Exception as exc:  # noqa: BLE001 — CLI surface, report cleanly
         print("ERROR: " + str(exc))
         return 1
@@ -409,6 +415,30 @@ class Api:
 
     def install_premiere(self):
         return do_install_premiere()
+
+    def pick_feedback_shots(self):
+        """Multi-select image picker for feedback screenshots."""
+        import webview
+        res = webview.windows[0].create_file_dialog(
+            self._dialog_kind("OPEN", "OPEN_DIALOG"), allow_multiple=True)
+        return list(res) if res else []
+
+    def send_feedback(self, kind, name, message, files):
+        """Message + screenshots → GitHub issue on the shared feedback
+        inbox repo. Falls back to a local feedback_outbox/ bundle."""
+        try:
+            url = app_feedback.send_feedback(
+                APP_NAME, APP_VERSION, kind or "Feedback",
+                name or "", message, files or [])
+            return {"ok": True, "url": url}
+        except Exception as exc:  # noqa: BLE001 — network/token/API, report cleanly
+            try:
+                folder = app_feedback.save_locally(
+                    APP_NAME, APP_VERSION, kind or "Feedback",
+                    name or "", message, files or [])
+            except OSError:
+                folder = ""
+            return {"ok": False, "error": str(exc), "saved": folder}
 
 
 def gui():
