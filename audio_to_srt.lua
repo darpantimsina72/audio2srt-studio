@@ -634,36 +634,83 @@ local tc    = string.format("%02d:%02d:%02d:%02d",
                   math.floor(tlSec / 3600), math.floor((tlSec / 60) % 60), tlSec % 60, tlFr)
 local rangesPath = PROJECT_DIR .. SEP .. "logs" .. SEP .. "clip_ranges.txt"
 local rf = io.open(rangesPath, "w")
+if not rf then
+    alert_error("Audio to SRT", "Cannot write to the logs folder:\n" .. rangesPath
+        .. "\n\nCheck that the Audio2SRT folder isn't read-only or on a full disk.")
+    return
+end
 local rangeCount = 0
 local audioPath = ""
-if rf then
-    for _, c in ipairs(clips) do
-        local cmpi = c:GetMediaPoolItem()
-        if not cmpi then
-            log("Skipping clip with no media pool item")
-        else
-            local cpath = (cmpi:GetClipProperty() or {})["File Path"] or ""
-            if cpath == "" then
-                log("Skipping clip with no source file path")
+-- Reasons clips get skipped, so the failure message can explain what to do
+-- instead of just saying "no usable source file". Compound/nested/multicam
+-- clips and Fairlight bus/submix items don't expose a file on disk that this
+-- tool can transcribe; offline media has lost its path.
+local skipped = {}          -- list of "name — reason" strings
+local sawCompound = false
+local sawOffline  = false
+local function clip_name(c)
+    local ok, n = pcall(function() return c:GetName() end)
+    if ok and n and n ~= "" then return n end
+    return "(unnamed clip)"
+end
+for _, c in ipairs(clips) do
+    local cmpi = c:GetMediaPoolItem()
+    if not cmpi then
+        -- No media pool item: generators, transitions, or on-timeline audio
+        -- with no backing clip (e.g. Fairlight bus/submix renders).
+        skipped[#skipped + 1] = clip_name(c) .. " — no source clip (generator or bus/submix?)"
+        log("Skipping '" .. clip_name(c) .. "': no media pool item")
+    else
+        local props = cmpi:GetClipProperty() or {}
+        local cpath = props["File Path"] or ""
+        local ctype = props["Type"] or ""
+        if cpath == "" then
+            local lt = tostring(ctype):lower()
+            local reason
+            if lt:find("compound") or lt:find("timeline") or lt:find("multicam")
+                or lt:find("nested") or lt:find("fusion") then
+                sawCompound = true
+                reason = "nested/compound clip (" .. ctype .. ") — no file on disk"
             else
-                local srcStart = c:GetLeftOffset()
-                local cTlStart = c:GetStart()
-                local cTlEnd   = c:GetEnd()
-                local tlFrames = cTlEnd - cTlStart
-                local speed    = (c.GetPlayBackSpeed and c:GetPlayBackSpeed()) or 1.0
-                if not speed or speed == 0 then speed = 1.0 end
-                local srcEnd = srcStart + math.floor(tlFrames * speed + 0.5)
-                rf:write(string.format("%d %d %d %g %d %s\n",
-                    srcStart, srcEnd, cTlStart, fps, tlStart, cpath))
-                rangeCount = rangeCount + 1
-                if audioPath == "" then audioPath = cpath end
+                sawOffline = true
+                reason = (ctype ~= "" and (ctype .. " ") or "") .. "clip has no file path (offline media?)"
             end
+            skipped[#skipped + 1] = clip_name(c) .. " — " .. reason
+            log("Skipping '" .. clip_name(c) .. "': " .. reason)
+        else
+            local srcStart = c:GetLeftOffset()
+            local cTlStart = c:GetStart()
+            local cTlEnd   = c:GetEnd()
+            local tlFrames = cTlEnd - cTlStart
+            local speed    = (c.GetPlayBackSpeed and c:GetPlayBackSpeed()) or 1.0
+            if not speed or speed == 0 then speed = 1.0 end
+            local srcEnd = srcStart + math.floor(tlFrames * speed + 0.5)
+            rf:write(string.format("%d %d %d %g %d %s\n",
+                srcStart, srcEnd, cTlStart, fps, tlStart, cpath))
+            rangeCount = rangeCount + 1
+            if audioPath == "" then audioPath = cpath end
         end
     end
-    rf:close()
 end
+rf:close()
 if rangeCount == 0 then
-    alert_error("Audio to SRT", "No clips on the selected track have a usable source file.")
+    local msg = "None of the " .. #clips .. " clip(s) on Track " .. trackIndex
+        .. " have an audio file this tool can read.\n"
+    -- Show up to 6 clips with the reason each was skipped.
+    local shown = math.min(#skipped, 6)
+    for i = 1, shown do msg = msg .. "\n  - " .. skipped[i] end
+    if #skipped > shown then msg = msg .. "\n  - ...and " .. (#skipped - shown) .. " more" end
+    if sawCompound then
+        msg = msg .. "\n\nCompound/nested clips have no file on disk. Right-click the clip"
+            .. " -> 'Decompose in Place', or put the original audio (.wav) on its own track"
+            .. " and select that track."
+    elseif sawOffline then
+        msg = msg .. "\n\nThese clips look offline (no source file). Relink the media in the"
+            .. " Media Pool, then try again."
+    else
+        msg = msg .. "\n\nSelect a track that has plain audio clips backed by a file on disk."
+    end
+    alert_error("Audio to SRT", msg)
     return
 end
 log("Audio file (primary): " .. audioPath)
